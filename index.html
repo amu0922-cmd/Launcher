@@ -1760,14 +1760,77 @@ function getSavedFeeds(){
   return DEFAULT_FEEDS.slice();
 }
 
+function parseFeedXML(text, fallbackSourceName){
+  let doc;
+  try{
+    doc = new DOMParser().parseFromString(text, 'text/xml');
+  }catch(e){
+    return [];
+  }
+  if(!doc || doc.querySelector('parsererror')) return [];
+
+  let items = Array.from(doc.querySelectorAll('item'));
+  if(!items.length){
+    items = Array.from(doc.querySelectorAll('entry'));
+  }
+
+  const channelTitleEl = doc.querySelector('channel > title') || doc.querySelector('feed > title');
+  const sourceName = channelTitleEl ? channelTitleEl.textContent.trim() : (fallbackSourceName || '');
+
+  function getText(el, tag){
+    const node = el.querySelector(tag);
+    return node ? node.textContent.trim() : '';
+  }
+  function getLink(el){
+    const linkEls = el.querySelectorAll('link');
+    for(let i = 0; i < linkEls.length; i++){
+      const href = linkEls[i].getAttribute('href');
+      if(href) return href;
+      const txt = linkEls[i].textContent && linkEls[i].textContent.trim();
+      if(txt) return txt;
+    }
+    const guid = el.querySelector('guid');
+    if(guid && guid.textContent) return guid.textContent.trim();
+    return '';
+  }
+
+  return items.map(function(el){
+    const pubDate = getText(el, 'pubDate') || getText(el, 'published') || getText(el, 'updated') || getText(el, 'date');
+    return {
+      title: getText(el, 'title'),
+      link: getLink(el),
+      pubDate: pubDate,
+      source: {name: sourceName}
+    };
+  }).filter(function(it){ return it.title && it.link; });
+}
+
+function fetchFeedItems(url){
+  const proxies = [
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+    'https://corsproxy.io/?url=' + encodeURIComponent(url)
+  ];
+  function tryProxy(i){
+    if(i >= proxies.length) return [];
+    return fetch(proxies[i]).then(function(r){
+      if(!r.ok) throw new Error('http ' + r.status);
+      return r.text();
+    }).then(function(text){
+      const items = parseFeedXML(text);
+      if(!items.length) throw new Error('empty');
+      return items;
+    }).catch(function(){
+      return tryProxy(i + 1);
+    });
+  }
+  return tryProxy(0);
+}
+
 function loadFeed(){
   const feeds = getSavedFeeds();
   feedList.innerHTML = '<div class="feed-empty">読み込み中...</div>';
   const requests = feeds.map(function(url){
-    const api = 'https://api.rss2json.com/v1/api.json?count=50&rss_url=' + encodeURIComponent(url);
-    return fetch(api).then(function(r){ return r.json(); }).then(function(d){
-      return d.items || [];
-    }).catch(function(){ return []; });
+    return fetchFeedItems(url);
   });
   Promise.all(requests).then(function(results){
     let all = [];
