@@ -1805,25 +1805,36 @@ function parseFeedXML(text, fallbackSourceName){
   }).filter(function(it){ return it.title && it.link; });
 }
 
-function fetchFeedItems(url){
-  const proxies = [
-    'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-    'https://corsproxy.io/?url=' + encodeURIComponent(url)
-  ];
-  function tryProxy(i){
-    if(i >= proxies.length) return [];
-    return fetch(proxies[i]).then(function(r){
+function fetchWithTimeout(url, ms, isJSON){
+  return Promise.race([
+    fetch(url).then(function(r){
       if(!r.ok) throw new Error('http ' + r.status);
-      return r.text();
-    }).then(function(text){
-      const items = parseFeedXML(text);
+      return isJSON ? r.json() : r.text();
+    }),
+    new Promise(function(resolve, reject){
+      setTimeout(function(){ reject(new Error('timeout')); }, ms);
+    })
+  ]);
+}
+
+function fetchFeedItems(url){
+  const attempts = [
+    {proxy: 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url), json: false},
+    {proxy: 'https://corsproxy.io/?url=' + encodeURIComponent(url), json: false},
+    {proxy: 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(url), json: true}
+  ];
+  function tryAttempt(i){
+    if(i >= attempts.length) return [];
+    const a = attempts[i];
+    return fetchWithTimeout(a.proxy, 8000, a.json).then(function(data){
+      const items = a.json ? (data.items || []) : parseFeedXML(data);
       if(!items.length) throw new Error('empty');
       return items;
     }).catch(function(){
-      return tryProxy(i + 1);
+      return tryAttempt(i + 1);
     });
   }
-  return tryProxy(0);
+  return tryAttempt(0);
 }
 
 function loadFeed(){
@@ -1832,13 +1843,21 @@ function loadFeed(){
   const requests = feeds.map(function(url){
     return fetchFeedItems(url);
   });
-  Promise.all(requests).then(function(results){
+  const allDone = Promise.all(requests).then(function(results){
     let all = [];
     results.forEach(function(items){ all = all.concat(items); });
     all.sort(function(a, b){
       return new Date(b.pubDate) - new Date(a.pubDate);
     });
-    renderFeed(all);
+    return all;
+  });
+  const hardTimeout = new Promise(function(resolve){
+    setTimeout(function(){ resolve(null); }, 25000);
+  });
+  Promise.race([allDone, hardTimeout]).then(function(all){
+    renderFeed(all || []);
+  }).catch(function(){
+    renderFeed([]);
   });
 }
 loadFeed();
