@@ -18,16 +18,68 @@
     --accent2:#ec4464;
     --border:#e6e8f2;
   }
+  body.dark{
+    --bg:#1a1825;
+    --card:#262333;
+    --card2:#322e44;
+    --text:#f1eefb;
+    --sub:#a9a3c4;
+    --border:#3c3852;
+  }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;}
+  html,body{margin:0;padding:0;height:100%;}
   body{
     background:var(--bg);
     color:var(--text);
     font-family:"Hiragino Sans","Noto Sans JP",sans-serif;
-    min-height:100vh;
-    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 24px) 14px;
+    overflow:hidden;
+  }
+  .pager{
+    display:flex;
+    width:100%;height:100%;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+  }
+  .page{
+    flex:0 0 100%;
+    width:100%;height:100%;
+    scroll-snap-align:start;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 28px) 14px;
   }
   .wrap{max-width:480px;margin:0 auto;}
+
+  /* page dots */
+  .page-dots{
+    position:fixed;
+    bottom:calc(env(safe-area-inset-bottom) + 8px);
+    left:0;right:0;
+    display:flex;justify-content:center;gap:6px;
+    pointer-events:none;
+    z-index:40;
+  }
+  .page-dots .dot{
+    width:7px;height:7px;border-radius:50%;
+    background:var(--sub);opacity:.4;
+    transition:opacity .2s, transform .2s;
+  }
+  .page-dots .dot.active{opacity:1;background:var(--accent);transform:scale(1.25);}
+
+  /* feed page header */
+  .page-header{
+    display:flex;align-items:center;justify-content:space-between;
+    margin:14px 0 14px;
+  }
+  .page-header h2{font-size:17px;font-weight:800;margin:0;}
+  .page-icon-btn{
+    background:var(--card);border:none;
+    width:36px;height:36px;border-radius:50%;
+    font-size:16px;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 1px 4px rgba(0,0,0,.08);color:var(--text);
+  }
 
   /* banner */
   .banner{
@@ -296,6 +348,17 @@
     color:var(--text);
     font-size:15px;
   }
+  .sheet select{
+    width:100%;
+    background:var(--card2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px 12px;
+    color:var(--text);
+    font-size:14px;
+    -webkit-appearance:none;
+    appearance:none;
+  }
   .icon-pick{
     display:flex;align-items:center;gap:12px;margin-top:6px;
   }
@@ -327,51 +390,69 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="pager" id="pager">
 
-  <div class="banner" id="banner">
-    <img id="bannerImg" style="display:none;" alt="">
-    <div class="banner-overlay">
-      <div class="banner-title">🏠 ホームランチャー</div>
-      <div class="banner-sub">Quick Search & App Launch</div>
-    </div>
-    <button class="banner-edit" id="bannerEditBtn" title="画像を変更">📷</button>
-    <div class="banner-actions">
-      <button class="banner-icon-btn" id="refreshBtn" title="更新">🔄</button>
-      <button class="banner-icon-btn" id="settingsBtn" title="設定">⚙️</button>
-    </div>
-    <input type="file" id="bannerFile" accept="image/*" style="display:none;">
-  </div>
+  <div class="page" id="pageHome">
+    <div class="wrap">
 
-  <div class="divider"></div>
-
-  <div class="search-wrap">
-    <form class="search-box" id="searchForm" autocomplete="off">
-      <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off">
-      <button type="submit">🔍</button>
-    </form>
-    <div class="suggest-list" id="suggestList"></div>
-  </div>
-
-  <div class="weather" id="weatherBox">
-    <div class="weather-current">
-      <div class="icon" id="wIcon">🌥️</div>
-      <div class="info">
-        <div class="temp" id="wTemp">--℃</div>
-        <div class="place" id="wPlace">天気を取得中...</div>
+      <div class="banner" id="banner">
+        <img id="bannerImg" style="display:none;" alt="">
+        <div class="banner-overlay">
+          <div class="banner-title">🏠 ホームランチャー</div>
+          <div class="banner-sub">Quick Search & App Launch</div>
+        </div>
+        <button class="banner-edit" id="bannerEditBtn" title="画像を変更">📷</button>
+        <div class="banner-actions">
+          <button class="banner-icon-btn" id="themeBtn" title="テーマ切替">🌙</button>
+          <button class="banner-icon-btn" id="refreshBtn" title="更新">🔄</button>
+          <button class="banner-icon-btn" id="settingsBtn" title="設定">⚙️</button>
+        </div>
+        <input type="file" id="bannerFile" accept="image/*" style="display:none;">
       </div>
-      <button class="reload" id="wReload" title="更新">↻</button>
+
+      <div class="divider"></div>
+
+      <div class="search-wrap">
+        <form class="search-box" id="searchForm" autocomplete="off">
+          <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off">
+          <button type="submit">🔍</button>
+        </form>
+        <div class="suggest-list" id="suggestList"></div>
+      </div>
+
+      <div class="weather" id="weatherBox">
+        <div class="weather-current">
+          <div class="icon" id="wIcon">🌥️</div>
+          <div class="info">
+            <div class="temp" id="wTemp">--℃</div>
+            <div class="place" id="wPlace">天気を取得中...</div>
+          </div>
+          <button class="reload" id="wReload" title="更新">↻</button>
+        </div>
+        <div class="weather-week" id="weatherWeek"></div>
+        <div class="weather-hint">タップで週間天気予報サイトへ →</div>
+      </div>
+
+      <div class="grid" id="appGrid"></div>
+
     </div>
-    <div class="weather-week" id="weatherWeek"></div>
-    <div class="weather-hint">タップで週間天気予報サイトへ →</div>
   </div>
 
-  <div class="grid" id="appGrid"></div>
-
-  <div class="feed-section">
-    <div class="feed-heading">📰 フィード</div>
-    <div class="feed-list" id="feedList"></div>
+  <div class="page" id="pageFeed">
+    <div class="wrap">
+      <div class="page-header">
+        <h2>📰 フィード</h2>
+        <button class="page-icon-btn" id="feedRefreshBtn" title="更新">🔄</button>
+      </div>
+      <div class="feed-list" id="feedList"></div>
+    </div>
   </div>
+
+</div>
+
+<div class="page-dots">
+  <span class="dot active" data-page="0"></span>
+  <span class="dot" data-page="1"></span>
 </div>
 
 <div class="overlay" id="overlay">
@@ -413,6 +494,17 @@
       <input type="file" id="bgFile" accept="image/*" style="display:none;">
       <button class="btn-cancel" id="resetBgBtn">背景をリセット</button>
     </div>
+    <label>フィードを選択</label>
+    <select id="feedPreset">
+      <option value="https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja">📰 総合(Googleニュース)</option>
+      <option value="https://news.yahoo.co.jp/rss/topics/top-picks.xml">Yahoo!ニュース 主要</option>
+      <option value="https://www3.nhk.or.jp/rss/news/cat0.xml">NHKニュース</option>
+      <option value="https://news.google.com/rss/headlines/section/topic/SPORTS?hl=ja&gl=JP&ceid=JP:ja">スポーツ</option>
+      <option value="https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=ja&gl=JP&ceid=JP:ja">経済</option>
+      <option value="https://news.google.com/rss/search?q=競馬&hl=ja&gl=JP&ceid=JP:ja">🐎 競馬ニュース</option>
+      <option value="https://news.google.com/rss/search?q=JRA&hl=ja&gl=JP&ceid=JP:ja">🐎 JRA関連</option>
+      <option value="custom">カスタムURL</option>
+    </select>
     <label>フィードのRSS URL</label>
     <input type="text" id="feedUrlInput" placeholder="https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja">
     <div class="sheet-actions">
@@ -629,6 +721,36 @@ document.getElementById('btnDelete').addEventListener('click', function(){
 });
 
 renderGrid();
+
+/* ---- theme toggle ---- */
+const THEME_KEY = 'launcherTheme';
+const themeBtn = document.getElementById('themeBtn');
+const themeMeta = document.querySelector('meta[name="theme-color"]');
+
+function applyTheme(){
+  const dark = localStorage.getItem(THEME_KEY) === 'dark';
+  document.body.classList.toggle('dark', dark);
+  themeBtn.textContent = dark ? '☀️' : '🌙';
+  themeMeta.setAttribute('content', dark ? '#1a1825' : '#ec4464');
+}
+applyTheme();
+
+themeBtn.addEventListener('click', function(){
+  const dark = document.body.classList.contains('dark');
+  localStorage.setItem(THEME_KEY, dark ? 'light' : 'dark');
+  applyTheme();
+});
+
+/* ---- pager / page dots ---- */
+const pager = document.getElementById('pager');
+const pageDots = document.querySelectorAll('.page-dots .dot');
+
+pager.addEventListener('scroll', function(){
+  const idx = Math.round(pager.scrollLeft / pager.clientWidth);
+  pageDots.forEach(function(d, i){
+    d.classList.toggle('active', i === idx);
+  });
+});
 
 /* ---- search + suggestions ---- */
 const searchInput = document.getElementById('searchInput');
@@ -1006,7 +1128,17 @@ document.getElementById('refreshBtn').addEventListener('click', function(){
 const settingsOverlay = document.getElementById('settingsOverlay');
 
 document.getElementById('settingsBtn').addEventListener('click', function(){
-  feedUrlInput.value = localStorage.getItem(FEED_KEY) || DEFAULT_FEED;
+  const cur = localStorage.getItem(FEED_KEY) || DEFAULT_FEED;
+  feedUrlInput.value = cur;
+  let matched = false;
+  for(let i = 0; i < feedPresetSelect.options.length; i++){
+    if(feedPresetSelect.options[i].value === cur){
+      feedPresetSelect.value = cur;
+      matched = true;
+      break;
+    }
+  }
+  if(!matched) feedPresetSelect.value = 'custom';
   settingsOverlay.classList.add('show');
 });
 document.getElementById('settingsCloseBtn').addEventListener('click', function(){
@@ -1014,6 +1146,18 @@ document.getElementById('settingsCloseBtn').addEventListener('click', function()
 });
 
 const feedUrlInput = document.getElementById('feedUrlInput');
+const feedPresetSelect = document.getElementById('feedPreset');
+
+feedPresetSelect.addEventListener('change', function(){
+  if(this.value !== 'custom'){
+    feedUrlInput.value = this.value;
+  }
+});
+
+document.getElementById('feedRefreshBtn').addEventListener('click', function(){
+  loadFeed();
+});
+
 document.getElementById('saveFeedBtn').addEventListener('click', function(){
   const url = feedUrlInput.value.trim();
   if(url){
