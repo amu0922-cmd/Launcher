@@ -10,7 +10,8 @@
 <style>
   :root{
     --bg:#eef0f6;
-    --card:#ffffff;
+    --card:rgba(255,255,255,.6);
+    --card-solid:#ffffff;
     --card2:#f4f5fa;
     --text:#2d2a45;
     --sub:#9a96b3;
@@ -20,7 +21,8 @@
   }
   body.dark{
     --bg:#1a1825;
-    --card:#262333;
+    --card:rgba(38,35,51,.6);
+    --card-solid:#262333;
     --card2:#322e44;
     --text:#f1eefb;
     --sub:#a9a3c4;
@@ -79,19 +81,18 @@
     width:36px;height:36px;border-radius:50%;
     font-size:16px;display:flex;align-items:center;justify-content:center;
     box-shadow:0 1px 4px rgba(0,0,0,.08);color:var(--text);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   }
 
   /* banner */
   .banner{
     position:relative;
     width:100%;
-    height:130px;
+    height:200px;
     border-radius:18px;
     overflow:hidden;
     margin-top:12px;
     background:linear-gradient(135deg,#ff9bb0,#ec4464 55%,#8b6cf0);
-    display:flex;
-    align-items:flex-end;
     box-shadow:0 4px 14px rgba(236,68,100,.25);
   }
   .banner img{
@@ -101,23 +102,42 @@
   }
   .banner-overlay{
     position:relative;z-index:1;
-    width:100%;
-    padding:12px 16px;
-    background:linear-gradient(to top, rgba(0,0,0,.45), rgba(0,0,0,0));
+    width:100%;height:100%;
+    padding:12px 16px 50px;
+    display:flex;flex-direction:column;justify-content:space-between;
+    background:linear-gradient(to bottom, rgba(0,0,0,.4) 0%, rgba(0,0,0,.1) 45%, rgba(0,0,0,.45) 100%);
   }
   .banner-title{
     color:#fff;
-    font-size:18px;
+    font-size:17px;
     font-weight:800;
     letter-spacing:.04em;
     text-shadow:0 1px 4px rgba(0,0,0,.4);
   }
-  .banner-sub{
-    color:rgba(255,255,255,.85);
-    font-size:11px;
-    margin-top:2px;
-    text-shadow:0 1px 3px rgba(0,0,0,.4);
+  .banner-weather{display:flex;flex-direction:column;gap:8px;}
+  .bw-main{
+    display:flex;align-items:center;gap:8px;
+    color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.4);
   }
+  .bw-icon{font-size:24px;line-height:1;}
+  .bw-temp{font-size:18px;font-weight:800;}
+  .bw-place{font-size:12px;opacity:.9;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bw-reload{
+    background:rgba(0,0,0,.35);border:none;color:#fff;
+    width:28px;height:28px;border-radius:50%;font-size:14px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .bw-week{
+    display:flex;gap:8px;overflow-x:auto;
+  }
+  .bw-week .day{
+    flex:0 0 auto;min-width:38px;text-align:center;
+    color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.4);
+    font-size:11px;
+  }
+  .bw-week .day .dname{opacity:.85;margin-bottom:2px;}
+  .bw-week .day .dicon{font-size:16px;}
+  .bw-week .day .dtemp{font-size:10px;margin-top:2px;white-space:nowrap;}
   .banner-edit{
     position:absolute;top:10px;right:10px;z-index:2;
     width:34px;height:34px;border-radius:50%;
@@ -149,6 +169,7 @@
     border-radius:14px;
     overflow:hidden;
     box-shadow:0 2px 6px rgba(0,0,0,.06);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   }
   .feed-link{
     display:flex;
@@ -208,6 +229,7 @@
     box-shadow:0 6px 16px rgba(0,0,0,.12);
     z-index:30;
     display:none;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   }
   .suggest-list .item{
     padding:11px 18px;
@@ -223,6 +245,7 @@
     border-radius:999px;
     padding:6px 6px 6px 18px;
     box-shadow:0 2px 8px rgba(0,0,0,.06);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   }
   .search-box input{
     flex:1;
@@ -245,49 +268,6 @@
     flex-shrink:0;
   }
 
-  /* weather */
-  .weather{
-    background:var(--card);
-    border-radius:18px;
-    padding:14px 18px;
-    margin-bottom:18px;
-    box-shadow:0 2px 8px rgba(0,0,0,.06);
-  }
-  .weather-current{
-    display:flex;
-    align-items:center;
-    gap:14px;
-    min-height:50px;
-  }
-  .weather .icon{font-size:34px;line-height:1;}
-  .weather .info{flex:1;}
-  .weather .temp{font-size:22px;font-weight:800;color:var(--text);}
-  .weather .place{font-size:12px;color:var(--sub);margin-top:2px;}
-  .weather .reload{
-    background:none;border:none;color:var(--sub);font-size:18px;padding:6px;
-  }
-  .weather-week{
-    display:flex;
-    gap:6px;
-    overflow-x:auto;
-    margin-top:10px;
-    padding-top:10px;
-    border-top:1px solid var(--border);
-  }
-  .weather-week .day{
-    flex:1 0 auto;
-    min-width:42px;
-    text-align:center;
-    font-size:11px;
-    color:var(--sub);
-  }
-  .weather-week .day .dname{margin-bottom:2px;}
-  .weather-week .day .dicon{font-size:18px;}
-  .weather-week .day .dtemp{font-size:11px;color:var(--text);margin-top:2px;white-space:nowrap;}
-  .weather-hint{
-    font-size:10px;color:var(--sub);text-align:right;margin-top:6px;
-  }
-
   /* app grid */
   .grid{
     display:grid;
@@ -305,6 +285,7 @@
     text-decoration:none;
     color:var(--text);
     box-shadow:0 2px 8px rgba(0,0,0,.06);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   }
   .app-card .ic{
     width:56px;height:56px;
@@ -345,9 +326,10 @@
   }
   .add-card{
     background:transparent;
-    border:2px dashed #d6d9e8;
+    border:2px dashed var(--border);
     color:var(--sub);
     box-shadow:none;
+    backdrop-filter:none;-webkit-backdrop-filter:none;
   }
   .add-card .ic{background:transparent;font-size:28px;color:var(--sub);}
 
@@ -362,7 +344,7 @@
   }
   .overlay.show{display:flex;}
   .sheet{
-    background:var(--card);
+    background:var(--card-solid);
     border-radius:20px 20px 0 0;
     width:100%;max-width:480px;
     padding:20px 20px calc(env(safe-area-inset-bottom) + 20px);
@@ -442,7 +424,15 @@
         <img id="bannerImg" style="display:none;" alt="">
         <div class="banner-overlay">
           <div class="banner-title">🏠 ホームランチャー</div>
-          <div class="banner-sub">Quick Search & App Launch</div>
+          <div class="banner-weather" id="weatherBox">
+            <div class="bw-main">
+              <span class="bw-icon" id="wIcon">🌥️</span>
+              <span class="bw-temp" id="wTemp">--℃</span>
+              <span class="bw-place" id="wPlace">天気を取得中...</span>
+              <button class="bw-reload" id="wReload" title="更新">↻</button>
+            </div>
+            <div class="bw-week" id="weatherWeek"></div>
+          </div>
         </div>
         <button class="banner-edit" id="bannerEditBtn" title="画像を変更">📷</button>
         <div class="banner-actions">
@@ -461,19 +451,6 @@
           <button type="submit">🔍</button>
         </form>
         <div class="suggest-list" id="suggestList"></div>
-      </div>
-
-      <div class="weather" id="weatherBox">
-        <div class="weather-current">
-          <div class="icon" id="wIcon">🌥️</div>
-          <div class="info">
-            <div class="temp" id="wTemp">--℃</div>
-            <div class="place" id="wPlace">天気を取得中...</div>
-          </div>
-          <button class="reload" id="wReload" title="更新">↻</button>
-        </div>
-        <div class="weather-week" id="weatherWeek"></div>
-        <div class="weather-hint">タップで週間天気予報サイトへ →</div>
       </div>
 
       <div class="grid" id="appGrid"></div>
@@ -563,7 +540,11 @@ const FEED_PRESETS = [
   {url:'https://news.google.com/rss/headlines/section/topic/SPORTS?hl=ja&gl=JP&ceid=JP:ja', label:'スポーツ'},
   {url:'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=ja&gl=JP&ceid=JP:ja', label:'経済'},
   {url:'https://news.google.com/rss/search?q=競馬&hl=ja&gl=JP&ceid=JP:ja', label:'🐎 競馬ニュース'},
-  {url:'https://news.google.com/rss/search?q=JRA&hl=ja&gl=JP&ceid=JP:ja', label:'🐎 JRA関連'}
+  {url:'https://news.google.com/rss/search?q=JRA&hl=ja&gl=JP&ceid=JP:ja', label:'🐎 JRA関連'},
+  {url:'https://gigazine.net/news/rss_2.0/', label:'GIGAZINE'},
+  {url:'https://blog.livedoor.jp/dqnplus/index.rdf', label:'痛いニュース(ノ∀`)'},
+  {url:'https://rss.itmedia.co.jp/rss/2.0/netlab.xml', label:'ねとらぼ'},
+  {url:'https://hamusoku.com/index.rdf', label:'ハムスター速報'}
 ];
 const DEFAULT_FEEDS = [FEED_PRESETS[0].url];
 
