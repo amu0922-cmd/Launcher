@@ -355,6 +355,28 @@
     border-color:var(--accent);
     color:var(--accent);
   }
+  .category-order-list{
+    display:flex;flex-direction:column;gap:6px;margin-top:6px;
+  }
+  .category-order-item{
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--card2);
+    border-radius:10px;
+    padding:8px 12px;
+    font-size:13px;
+    color:var(--text);
+  }
+  .category-order-item .order-btns{display:flex;gap:4px;}
+  .category-order-item button{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:8px;
+    width:30px;height:30px;
+    font-size:13px;
+    color:var(--text);
+  }
+  .category-order-item button:disabled{opacity:.35;}
+  .category-order-empty{font-size:12px;color:var(--sub);padding:4px 2px;}
 
   /* wide banner links */
   .banner-links{
@@ -636,6 +658,9 @@
       <input type="file" id="bgFile" accept="image/*" style="display:none;">
       <button class="btn-cancel" id="resetBgBtn">背景をリセット</button>
     </div>
+    <label>カテゴリの並び順</label>
+    <div class="category-order-list" id="categoryOrderList"></div>
+
     <label>フィード選択(複数可)</label>
     <div class="feed-checks" id="feedChecks"></div>
     <label>カスタムRSS URL(任意・1件)</label>
@@ -871,6 +896,7 @@ renderGrid();
 /* ---- wide banner links ---- */
 const LINKS_KEY = 'launcherBannerLinks';
 const CATEGORY_KEY = 'launcherBannerCategory';
+const CATEGORY_ORDER_KEY = 'launcherCategoryOrder';
 const linksContainer = document.getElementById('bannerLinks');
 const categoryTabsEl = document.getElementById('categoryTabs');
 let bannerLinks = loadBannerLinks();
@@ -906,8 +932,27 @@ function getCategoryList(){
   return cats;
 }
 
-function renderCategoryTabs(){
+function getOrderedCategories(){
   const cats = getCategoryList();
+  let order = [];
+  try{
+    const raw = localStorage.getItem(CATEGORY_ORDER_KEY);
+    if(raw) order = JSON.parse(raw);
+    if(!Array.isArray(order)) order = [];
+  }catch(e){ order = []; }
+
+  const ordered = order.filter(function(c){ return cats.indexOf(c) !== -1; });
+  cats.forEach(function(c){
+    if(ordered.indexOf(c) === -1) ordered.push(c);
+  });
+  if(JSON.stringify(ordered) !== JSON.stringify(order)){
+    localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(ordered));
+  }
+  return ordered;
+}
+
+function renderCategoryTabs(){
+  const cats = getOrderedCategories();
   categoryTabsEl.innerHTML = '';
   if(!cats.length){
     categoryTabsEl.style.display = 'none';
@@ -915,10 +960,10 @@ function renderCategoryTabs(){
     localStorage.setItem(CATEGORY_KEY, currentCategory);
     return;
   }
-  const all = ['すべて'].concat(cats);
-  if(all.indexOf(currentCategory) === -1) currentCategory = 'すべて';
+  if(cats.indexOf(currentCategory) === -1) currentCategory = cats[0];
+  localStorage.setItem(CATEGORY_KEY, currentCategory);
   categoryTabsEl.style.display = 'flex';
-  all.forEach(function(cat){
+  cats.forEach(function(cat){
     const tab = document.createElement('button');
     tab.className = 'category-tab' + (cat === currentCategory ? ' active' : '');
     tab.textContent = cat;
@@ -933,11 +978,64 @@ function renderCategoryTabs(){
 }
 
 function getFilteredLinks(){
-  if(currentCategory === 'すべて') return bannerLinks;
+  const cats = getOrderedCategories();
+  if(!cats.length) return bannerLinks;
   return bannerLinks.filter(function(item){
     const cat = (item.category && item.category.trim()) || '未分類';
     return cat === currentCategory;
   });
+}
+
+function renderCategoryOrderList(){
+  const list = document.getElementById('categoryOrderList');
+  const cats = getOrderedCategories();
+  list.innerHTML = '';
+  if(!cats.length){
+    const empty = document.createElement('div');
+    empty.className = 'category-order-empty';
+    empty.textContent = 'カテゴリが未設定です';
+    list.appendChild(empty);
+    return;
+  }
+  cats.forEach(function(cat, i){
+    const row = document.createElement('div');
+    row.className = 'category-order-item';
+
+    const name = document.createElement('div');
+    name.textContent = cat;
+
+    const btns = document.createElement('div');
+    btns.className = 'order-btns';
+
+    const up = document.createElement('button');
+    up.textContent = '▲';
+    up.disabled = (i === 0);
+    up.addEventListener('click', function(){ moveCategory(i, -1); });
+
+    const down = document.createElement('button');
+    down.textContent = '▼';
+    down.disabled = (i === cats.length - 1);
+    down.addEventListener('click', function(){ moveCategory(i, 1); });
+
+    btns.appendChild(up);
+    btns.appendChild(down);
+    row.appendChild(name);
+    row.appendChild(btns);
+    list.appendChild(row);
+  });
+}
+
+function moveCategory(index, dir){
+  const cats = getOrderedCategories();
+  const target = index + dir;
+  if(target < 0 || target >= cats.length) return;
+  const tmp = cats[index];
+  cats[index] = cats[target];
+  cats[target] = tmp;
+  localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(cats));
+  renderCategoryOrderList();
+  renderCategoryTabs();
+  renderBannerLinks();
 }
 
 function renderBannerLinks(){
@@ -1592,6 +1690,7 @@ document.getElementById('settingsBtn').addEventListener('click', function(){
     if(!isPreset) customUrl = url;
   });
   feedUrlInput.value = customUrl;
+  renderCategoryOrderList();
   settingsOverlay.classList.add('show');
 });
 document.getElementById('settingsCloseBtn').addEventListener('click', function(){
