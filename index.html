@@ -27,22 +27,56 @@
     padding:env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 24px) 16px;
   }
   .wrap{max-width:480px;margin:0 auto;}
+  .header-row{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    margin:18px 0 16px;
+  }
   h1{
     font-size:18px;
     font-weight:700;
     text-align:center;
-    margin:18px 0 16px;
+    margin:0;
     letter-spacing:.05em;
+  }
+  .settings-btn{
+    position:absolute;right:0;
+    background:var(--card);
+    border:none;
+    color:var(--text);
+    width:36px;height:36px;
+    border-radius:50%;
+    font-size:16px;
+    display:flex;align-items:center;justify-content:center;
   }
 
   /* search */
+  .search-wrap{position:relative;margin-bottom:14px;}
+  .suggest-list{
+    position:absolute;left:0;right:0;top:calc(100% + 6px);
+    background:var(--card);
+    border-radius:14px;
+    overflow:hidden;
+    box-shadow:0 4px 12px rgba(0,0,0,.35);
+    z-index:30;
+    display:none;
+  }
+  .suggest-list .item{
+    padding:11px 18px;
+    font-size:14px;
+    border-bottom:1px solid #3a3556;
+  }
+  .suggest-list .item:last-child{border-bottom:none;}
+  .suggest-list .item:active{background:var(--card2);}
   .search-box{
     display:flex;
     align-items:center;
     background:var(--card);
     border-radius:999px;
     padding:6px 6px 6px 18px;
-    margin-bottom:14px;
+    margin-bottom:0;
     box-shadow:0 2px 8px rgba(0,0,0,.25);
   }
   .search-box input{
@@ -72,11 +106,13 @@
     border-radius:18px;
     padding:14px 18px;
     margin-bottom:18px;
+    box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
+  .weather-current{
     display:flex;
     align-items:center;
     gap:14px;
-    min-height:64px;
-    box-shadow:0 2px 8px rgba(0,0,0,.25);
+    min-height:50px;
   }
   .weather .icon{font-size:34px;line-height:1;}
   .weather .info{flex:1;}
@@ -85,6 +121,27 @@
   .weather .msg{font-size:13px;color:var(--sub);}
   .weather .reload{
     background:none;border:none;color:var(--sub);font-size:18px;padding:6px;
+  }
+  .weather-week{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px solid rgba(255,255,255,.08);
+  }
+  .weather-week .day{
+    flex:1 0 auto;
+    min-width:42px;
+    text-align:center;
+    font-size:11px;
+    color:var(--sub);
+  }
+  .weather-week .day .dname{margin-bottom:2px;}
+  .weather-week .day .dicon{font-size:18px;}
+  .weather-week .day .dtemp{font-size:11px;color:var(--text);margin-top:2px;white-space:nowrap;}
+  .weather-hint{
+    font-size:10px;color:var(--sub);text-align:right;margin-top:6px;
   }
 
   /* app grid */
@@ -201,20 +258,30 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>🏠 ホーム</h1>
+  <div class="header-row">
+    <h1>🏠 ホーム</h1>
+    <button class="settings-btn" id="settingsBtn" title="設定">⚙️</button>
+  </div>
 
-  <form class="search-box" id="searchForm">
-    <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off">
-    <button type="submit">🔍</button>
-  </form>
+  <div class="search-wrap">
+    <form class="search-box" id="searchForm" autocomplete="off">
+      <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off">
+      <button type="submit">🔍</button>
+    </form>
+    <div class="suggest-list" id="suggestList"></div>
+  </div>
 
   <div class="weather" id="weatherBox">
-    <div class="icon" id="wIcon">🌥️</div>
-    <div class="info">
-      <div class="temp" id="wTemp">--℃</div>
-      <div class="place" id="wPlace">天気を取得中...</div>
+    <div class="weather-current">
+      <div class="icon" id="wIcon">🌥️</div>
+      <div class="info">
+        <div class="temp" id="wTemp">--℃</div>
+        <div class="place" id="wPlace">天気を取得中...</div>
+      </div>
+      <button class="reload" id="wReload" title="更新">↻</button>
     </div>
-    <button class="reload" id="wReload" title="更新">↻</button>
+    <div class="weather-week" id="weatherWeek"></div>
+    <div class="weather-hint">タップで週間天気予報サイトへ →</div>
   </div>
 
   <div class="grid" id="appGrid"></div>
@@ -239,6 +306,20 @@
     </div>
     <div class="sheet-actions" id="deleteRow" style="display:none;">
       <button class="btn-delete" id="btnDelete">このアプリを削除</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="settingsOverlay">
+  <div class="sheet">
+    <h2>設定</h2>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="exportBtn">📤 書き出し</button>
+      <label class="btn-save" for="importFile" style="text-align:center;display:flex;align-items:center;justify-content:center;">📥 読み込み</label>
+      <input type="file" id="importFile" accept="application/json" style="display:none;">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="settingsCloseBtn">閉じる</button>
     </div>
   </div>
 </div>
@@ -277,25 +358,8 @@ function initialOf(name){
   return name ? name.trim().charAt(0).toUpperCase() : '?';
 }
 
-function isAndroid(){
-  return /Android/i.test(navigator.userAgent);
-}
-
 function launchApp(url){
   if(!url) return;
-  if(isAndroid()){
-    try{
-      const u = new URL(url);
-      const scheme = u.protocol.replace(':', '');
-      const intentUrl = 'intent://' + u.host + u.pathname + u.search + u.hash
-        + '#Intent;scheme=' + scheme
-        + ';category=android.intent.category.BROWSABLE'
-        + ';S.browser_fallback_url=' + encodeURIComponent(url)
-        + ';end';
-      window.location.href = intentUrl;
-      return;
-    }catch(e){}
-  }
   window.location.href = url;
 }
 
@@ -462,12 +526,71 @@ document.getElementById('btnDelete').addEventListener('click', function(){
 
 renderGrid();
 
-/* ---- search ---- */
+/* ---- search + suggestions ---- */
+const searchInput = document.getElementById('searchInput');
+const suggestList = document.getElementById('suggestList');
+let suggestTimer = null;
+
+function openSearch(q){
+  if(!q) return;
+  suggestList.style.display = 'none';
+  window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
+}
+
+function showSuggestions(list){
+  suggestList.innerHTML = '';
+  if(!list || !list.length){
+    suggestList.style.display = 'none';
+    return;
+  }
+  list.slice(0, 6).forEach(function(text){
+    const item = document.createElement('div');
+    item.className = 'item';
+    item.textContent = text;
+    item.addEventListener('click', function(){
+      searchInput.value = text;
+      openSearch(text);
+    });
+    suggestList.appendChild(item);
+  });
+  suggestList.style.display = 'block';
+}
+
+function fetchSuggestions(query){
+  const cbName = '__sugg_' + Date.now();
+  const script = document.createElement('script');
+  function cleanup(){
+    delete window[cbName];
+    if(script.parentNode) script.parentNode.removeChild(script);
+  }
+  window[cbName] = function(data){
+    showSuggestions(data && data[1] ? data[1] : []);
+    cleanup();
+  };
+  script.onerror = cleanup;
+  script.src = 'https://suggestqueries.google.com/complete/search?client=chrome&jsonp=' + cbName + '&hl=ja&q=' + encodeURIComponent(query);
+  document.body.appendChild(script);
+}
+
+searchInput.addEventListener('input', function(){
+  const q = searchInput.value.trim();
+  clearTimeout(suggestTimer);
+  if(!q){
+    suggestList.style.display = 'none';
+    return;
+  }
+  suggestTimer = setTimeout(function(){ fetchSuggestions(q); }, 200);
+});
+
+document.addEventListener('click', function(e){
+  if(!suggestList.contains(e.target) && e.target !== searchInput){
+    suggestList.style.display = 'none';
+  }
+});
+
 document.getElementById('searchForm').addEventListener('submit', function(e){
   e.preventDefault();
-  const q = document.getElementById('searchInput').value.trim();
-  if(!q) return;
-  window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
+  openSearch(searchInput.value.trim());
 });
 
 /* ---- weather ---- */
@@ -475,6 +598,9 @@ const wIcon = document.getElementById('wIcon');
 const wTemp = document.getElementById('wTemp');
 const wPlace = document.getElementById('wPlace');
 const wReload = document.getElementById('wReload');
+const weatherWeek = document.getElementById('weatherWeek');
+const weekdayNames = ['日','月','火','水','木','金','土'];
+let currentPlaceName = '';
 
 function weatherEmoji(code){
   if(code === 0) return {icon:'☀️', text:'晴れ'};
@@ -496,22 +622,59 @@ function fetchPlaceName(lat, lon){
   fetch(url).then(function(r){ return r.json(); }).then(function(d){
     const place = d.city || d.locality || d.principalSubdivision || '';
     if(place){
+      currentPlaceName = place;
       const condition = wPlace.dataset.condition || '';
       wPlace.textContent = place + (condition ? ' ・ ' + condition : '');
     }
   }).catch(function(){});
 }
 
+function renderWeekly(daily){
+  weatherWeek.innerHTML = '';
+  if(!daily || !daily.time) return;
+  daily.time.forEach(function(dateStr, i){
+    const d = new Date(dateStr);
+    const w = weatherEmoji(daily.weathercode[i]);
+    const max = Math.round(daily.temperature_2m_max[i]);
+    const min = Math.round(daily.temperature_2m_min[i]);
+
+    const day = document.createElement('div');
+    day.className = 'day';
+
+    const dname = document.createElement('div');
+    dname.className = 'dname';
+    dname.textContent = i === 0 ? '今日' : weekdayNames[d.getDay()];
+
+    const dicon = document.createElement('div');
+    dicon.className = 'dicon';
+    dicon.textContent = w.icon;
+
+    const dtemp = document.createElement('div');
+    dtemp.className = 'dtemp';
+    dtemp.textContent = max + '°/' + min + '°';
+
+    day.appendChild(dname);
+    day.appendChild(dicon);
+    day.appendChild(dtemp);
+    weatherWeek.appendChild(day);
+  });
+}
+
 function fetchWeather(lat, lon){
-  const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current_weather=true&timezone=auto';
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon
+    + '&current_weather=true'
+    + '&daily=temperature_2m_max,temperature_2m_min,weathercode'
+    + '&forecast_days=7&timezone=auto';
   fetch(url).then(function(r){ return r.json(); }).then(function(d){
     const cw = d.current_weather;
-    if(!cw) return;
-    const w = weatherEmoji(cw.weathercode);
-    wIcon.textContent = w.icon;
-    wTemp.textContent = Math.round(cw.temperature) + '℃';
-    wPlace.dataset.condition = w.text;
-    wPlace.textContent = w.text;
+    if(cw){
+      const w = weatherEmoji(cw.weathercode);
+      wIcon.textContent = w.icon;
+      wTemp.textContent = Math.round(cw.temperature) + '℃';
+      wPlace.dataset.condition = w.text;
+      wPlace.textContent = w.text;
+    }
+    renderWeekly(d.daily);
     fetchPlaceName(lat, lon);
   }).catch(function(){
     wPlace.textContent = '天気を取得できませんでした';
@@ -544,12 +707,62 @@ function loadWeather(){
   }
 }
 
-wReload.addEventListener('click', function(){
+wReload.addEventListener('click', function(e){
+  e.stopPropagation();
   wPlace.textContent = '更新中...';
   loadWeather();
 });
 
+document.getElementById('weatherBox').addEventListener('click', function(){
+  const q = (currentPlaceName ? currentPlaceName + ' ' : '') + '週間天気';
+  window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
+});
+
 loadWeather();
+
+/* ---- settings: backup / restore ---- */
+const settingsOverlay = document.getElementById('settingsOverlay');
+
+document.getElementById('settingsBtn').addEventListener('click', function(){
+  settingsOverlay.classList.add('show');
+});
+document.getElementById('settingsCloseBtn').addEventListener('click', function(){
+  settingsOverlay.classList.remove('show');
+});
+
+document.getElementById('exportBtn').addEventListener('click', function(){
+  const data = JSON.stringify(apps, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'launcher-settings.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+});
+
+document.getElementById('importFile').addEventListener('change', function(){
+  const file = this.files[0];
+  this.value = '';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const arr = JSON.parse(ev.target.result);
+      if(!Array.isArray(arr)) throw new Error('invalid');
+      apps = arr;
+      saveApps(apps);
+      renderGrid();
+      settingsOverlay.classList.remove('show');
+      alert('設定を読み込みました');
+    }catch(err){
+      alert('読み込みに失敗しました。正しいファイルか確認してね');
+    }
+  };
+  reader.readAsText(file);
+});
 
 /* service worker */
 if('serviceWorker' in navigator){
