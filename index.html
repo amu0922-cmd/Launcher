@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1e1b2e">
+<title>ホームランチャー</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  :root{
+    --bg:#1e1b2e;
+    --card:#2a2640;
+    --card2:#332e4d;
+    --text:#f1eefb;
+    --sub:#a9a3c4;
+    --accent:#a78bfa;
+    --accent2:#7c5cce;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Hiragino Sans","Noto Sans JP",sans-serif;
+    min-height:100vh;
+    padding:env(safe-area-inset-top) 16px calc(env(safe-area-inset-bottom) + 24px) 16px;
+  }
+  .wrap{max-width:480px;margin:0 auto;}
+  h1{
+    font-size:18px;
+    font-weight:700;
+    text-align:center;
+    margin:18px 0 16px;
+    letter-spacing:.05em;
+  }
+
+  /* search */
+  .search-box{
+    display:flex;
+    align-items:center;
+    background:var(--card);
+    border-radius:999px;
+    padding:6px 6px 6px 18px;
+    margin-bottom:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
+  .search-box input{
+    flex:1;
+    background:transparent;
+    border:none;
+    outline:none;
+    color:var(--text);
+    font-size:16px;
+    padding:10px 0;
+  }
+  .search-box input::placeholder{color:var(--sub);}
+  .search-box button{
+    background:var(--accent2);
+    color:#fff;
+    border:none;
+    border-radius:999px;
+    width:42px;height:42px;
+    font-size:18px;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+
+  /* weather */
+  .weather{
+    background:linear-gradient(135deg,var(--card2),var(--card));
+    border-radius:18px;
+    padding:14px 18px;
+    margin-bottom:18px;
+    display:flex;
+    align-items:center;
+    gap:14px;
+    min-height:64px;
+    box-shadow:0 2px 8px rgba(0,0,0,.25);
+  }
+  .weather .icon{font-size:34px;line-height:1;}
+  .weather .info{flex:1;}
+  .weather .temp{font-size:22px;font-weight:700;}
+  .weather .place{font-size:12px;color:var(--sub);margin-top:2px;}
+  .weather .msg{font-size:13px;color:var(--sub);}
+  .weather .reload{
+    background:none;border:none;color:var(--sub);font-size:18px;padding:6px;
+  }
+
+  /* app grid */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:14px;
+  }
+  .app-card{
+    position:relative;
+    background:var(--card);
+    border-radius:16px;
+    padding:10px 6px 8px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-decoration:none;
+    color:var(--text);
+    box-shadow:0 2px 6px rgba(0,0,0,.25);
+  }
+  .app-card .ic{
+    width:56px;height:56px;
+    border-radius:14px;
+    overflow:hidden;
+    background:var(--card2);
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:6px;
+    font-size:24px;
+    font-weight:700;
+    color:#fff;
+  }
+  .app-card .ic img{width:100%;height:100%;object-fit:cover;display:block;}
+  .app-card .name{
+    font-size:12px;
+    text-align:center;
+    line-height:1.3;
+    word-break:break-all;
+    max-width:100%;
+  }
+  .app-card .edit-btn{
+    position:absolute;
+    top:4px;right:4px;
+    width:24px;height:24px;
+    border-radius:50%;
+    background:rgba(0,0,0,.4);
+    border:none;
+    color:#fff;
+    font-size:12px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .add-card{
+    background:transparent;
+    border:2px dashed #4a4566;
+    color:var(--sub);
+  }
+  .add-card .ic{background:transparent;font-size:28px;color:var(--sub);}
+
+  /* modal */
+  .overlay{
+    position:fixed;inset:0;
+    background:rgba(0,0,0,.55);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:50;
+  }
+  .overlay.show{display:flex;}
+  .sheet{
+    background:var(--card);
+    border-radius:20px 20px 0 0;
+    width:100%;max-width:480px;
+    padding:20px 20px calc(env(safe-area-inset-bottom) + 20px);
+  }
+  .sheet h2{margin:0 0 14px;font-size:16px;}
+  .sheet label{font-size:12px;color:var(--sub);display:block;margin:10px 0 4px;}
+  .sheet input[type=text],.sheet input[type=url]{
+    width:100%;
+    background:var(--card2);
+    border:1px solid #463f66;
+    border-radius:10px;
+    padding:10px 12px;
+    color:var(--text);
+    font-size:15px;
+  }
+  .icon-pick{
+    display:flex;align-items:center;gap:12px;margin-top:6px;
+  }
+  .icon-pick .preview{
+    width:48px;height:48px;border-radius:12px;background:var(--card2);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    font-weight:700;color:#fff;font-size:20px;
+  }
+  .icon-pick .preview img{width:100%;height:100%;object-fit:cover;}
+  .icon-pick label.file-label{
+    background:var(--card2);
+    border:1px solid #463f66;
+    border-radius:10px;
+    padding:8px 14px;
+    font-size:13px;
+    color:var(--text);
+    margin:0;
+  }
+  .sheet-actions{display:flex;gap:10px;margin-top:18px;}
+  .sheet-actions button{
+    flex:1;
+    border:none;border-radius:12px;
+    padding:12px;
+    font-size:15px;font-weight:700;
+  }
+  .btn-save{background:var(--accent2);color:#fff;}
+  .btn-cancel{background:var(--card2);color:var(--text);}
+  .btn-delete{background:#5a3a4a;color:#ffb4c6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏠 ホーム</h1>
+
+  <form class="search-box" id="searchForm">
+    <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off">
+    <button type="submit">🔍</button>
+  </form>
+
+  <div class="weather" id="weatherBox">
+    <div class="icon" id="wIcon">🌥️</div>
+    <div class="info">
+      <div class="temp" id="wTemp">--℃</div>
+      <div class="place" id="wPlace">天気を取得中...</div>
+    </div>
+    <button class="reload" id="wReload" title="更新">↻</button>
+  </div>
+
+  <div class="grid" id="appGrid"></div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="sheetTitle">アプリを追加</h2>
+    <label>アプリ名</label>
+    <input type="text" id="appName" placeholder="例: 競馬予想">
+    <label>URL</label>
+    <input type="url" id="appUrl" placeholder="https://example.github.io/app/">
+    <label>アイコン</label>
+    <div class="icon-pick">
+      <div class="preview" id="iconPreview">A</div>
+      <label class="file-label" for="iconFile">画像を選択</label>
+      <input type="file" id="iconFile" accept="image/*" style="display:none;">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="btnCancel">キャンセル</button>
+      <button class="btn-save" id="btnSave">保存</button>
+    </div>
+    <div class="sheet-actions" id="deleteRow" style="display:none;">
+      <button class="btn-delete" id="btnDelete">このアプリを削除</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'launcherApps';
+const COORD_KEY = 'launcherCoords';
+
+const defaultApps = [
+  {id:'keiba',  name:'競馬予想', url:'', icon:'icons/keiba.png'},
+  {id:'db',     name:'DB分析',   url:'', icon:'icons/dbanalysis.png'},
+  {id:'mytube', name:'mytube',   url:'', icon:'icons/mytube.png'},
+  {id:'pass',   name:'PassVault',url:'', icon:'icons/passvault.png'}
+];
+
+function loadApps(){
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if(!raw) return defaultApps.slice();
+  try{
+    const arr = JSON.parse(raw);
+    if(Array.isArray(arr) && arr.length) return arr;
+  }catch(e){}
+  return defaultApps.slice();
+}
+function saveApps(apps){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(apps));
+}
+
+let apps = loadApps();
+let editingId = null;
+let pickedIcon = null;
+
+const grid = document.getElementById('appGrid');
+
+function initialOf(name){
+  return name ? name.trim().charAt(0).toUpperCase() : '?';
+}
+
+function isAndroid(){
+  return /Android/i.test(navigator.userAgent);
+}
+
+function launchApp(url){
+  if(!url) return;
+  if(isAndroid()){
+    try{
+      const u = new URL(url);
+      const scheme = u.protocol.replace(':', '');
+      const intentUrl = 'intent://' + u.host + u.pathname + u.search + u.hash
+        + '#Intent;scheme=' + scheme
+        + ';category=android.intent.category.BROWSABLE'
+        + ';S.browser_fallback_url=' + encodeURIComponent(url)
+        + ';end';
+      window.location.href = intentUrl;
+      return;
+    }catch(e){}
+  }
+  window.location.href = url;
+}
+
+function renderGrid(){
+  grid.innerHTML = '';
+  apps.forEach(function(app){
+    const card = document.createElement('div');
+    card.className = 'app-card';
+
+    const ic = document.createElement('div');
+    ic.className = 'ic';
+    if(app.icon){
+      const img = document.createElement('img');
+      img.src = app.icon;
+      img.alt = '';
+      ic.appendChild(img);
+    }else{
+      ic.textContent = initialOf(app.name);
+    }
+    card.appendChild(ic);
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'name';
+    nameEl.textContent = app.name;
+    card.appendChild(nameEl);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn';
+    editBtn.textContent = '✏️';
+    editBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      e.preventDefault();
+      openEdit(app.id);
+    });
+    card.appendChild(editBtn);
+
+    card.addEventListener('click', function(e){
+      if(!app.url){
+        e.preventDefault();
+        openEdit(app.id);
+        return;
+      }
+      launchApp(app.url);
+    });
+
+    grid.appendChild(card);
+  });
+
+  const addCard = document.createElement('div');
+  addCard.className = 'app-card add-card';
+  const addIc = document.createElement('div');
+  addIc.className = 'ic';
+  addIc.textContent = '+';
+  addCard.appendChild(addIc);
+  const addName = document.createElement('div');
+  addName.className = 'name';
+  addName.textContent = '追加';
+  addCard.appendChild(addName);
+  addCard.addEventListener('click', function(){ openAdd(); });
+  grid.appendChild(addCard);
+}
+
+/* ---- edit / add modal ---- */
+const overlay = document.getElementById('overlay');
+const sheetTitle = document.getElementById('sheetTitle');
+const appNameInput = document.getElementById('appName');
+const appUrlInput = document.getElementById('appUrl');
+const iconFile = document.getElementById('iconFile');
+const iconPreview = document.getElementById('iconPreview');
+const deleteRow = document.getElementById('deleteRow');
+
+function showPreview(src, name){
+  iconPreview.innerHTML = '';
+  if(src){
+    const img = document.createElement('img');
+    img.src = src;
+    iconPreview.appendChild(img);
+  }else{
+    iconPreview.textContent = initialOf(name);
+  }
+}
+
+function openAdd(){
+  editingId = null;
+  pickedIcon = null;
+  sheetTitle.textContent = 'アプリを追加';
+  appNameInput.value = '';
+  appUrlInput.value = '';
+  deleteRow.style.display = 'none';
+  showPreview(null, '');
+  overlay.classList.add('show');
+}
+
+function openEdit(id){
+  const app = apps.find(function(a){ return a.id === id; });
+  if(!app) return;
+  editingId = id;
+  pickedIcon = app.icon || null;
+  sheetTitle.textContent = 'アプリを編集';
+  appNameInput.value = app.name;
+  appUrlInput.value = app.url || '';
+  deleteRow.style.display = 'flex';
+  showPreview(app.icon, app.name);
+  overlay.classList.add('show');
+}
+
+function closeSheet(){
+  overlay.classList.remove('show');
+}
+
+document.getElementById('btnCancel').addEventListener('click', closeSheet);
+
+iconFile.addEventListener('change', function(){
+  const file = iconFile.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = function(){
+      const size = 192;
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const scale = Math.max(size/img.width, size/img.height);
+      const w = img.width*scale, h = img.height*scale;
+      ctx.drawImage(img, (size-w)/2, (size-h)/2, w, h);
+      pickedIcon = canvas.toDataURL('image/png');
+      showPreview(pickedIcon, appNameInput.value);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('btnSave').addEventListener('click', function(){
+  const name = appNameInput.value.trim();
+  const url = appUrlInput.value.trim();
+  if(!name){ appNameInput.focus(); return; }
+
+  if(editingId){
+    const app = apps.find(function(a){ return a.id === editingId; });
+    app.name = name;
+    app.url = url;
+    app.icon = pickedIcon;
+  }else{
+    apps.push({
+      id: 'app_' + Date.now(),
+      name: name,
+      url: url,
+      icon: pickedIcon
+    });
+  }
+  saveApps(apps);
+  renderGrid();
+  closeSheet();
+});
+
+document.getElementById('btnDelete').addEventListener('click', function(){
+  apps = apps.filter(function(a){ return a.id !== editingId; });
+  saveApps(apps);
+  renderGrid();
+  closeSheet();
+});
+
+renderGrid();
+
+/* ---- search ---- */
+document.getElementById('searchForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const q = document.getElementById('searchInput').value.trim();
+  if(!q) return;
+  window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
+});
+
+/* ---- weather ---- */
+const wIcon = document.getElementById('wIcon');
+const wTemp = document.getElementById('wTemp');
+const wPlace = document.getElementById('wPlace');
+const wReload = document.getElementById('wReload');
+
+function weatherEmoji(code){
+  if(code === 0) return {icon:'☀️', text:'晴れ'};
+  if(code === 1 || code === 2) return {icon:'🌤️', text:'晴れ時々曇り'};
+  if(code === 3) return {icon:'☁️', text:'曇り'};
+  if(code === 45 || code === 48) return {icon:'🌫️', text:'霧'};
+  if(code >= 51 && code <= 57) return {icon:'🌦️', text:'霧雨'};
+  if(code >= 61 && code <= 65) return {icon:'🌧️', text:'雨'};
+  if(code === 66 || code === 67) return {icon:'🌧️', text:'凍雨'};
+  if(code >= 71 && code <= 77) return {icon:'🌨️', text:'雪'};
+  if(code === 80 || code === 81 || code === 82) return {icon:'🌧️', text:'にわか雨'};
+  if(code === 85 || code === 86) return {icon:'🌨️', text:'にわか雪'};
+  if(code >= 95) return {icon:'⛈️', text:'雷雨'};
+  return {icon:'🌡️', text:''};
+}
+
+function fetchPlaceName(lat, lon){
+  const url = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=ja';
+  fetch(url).then(function(r){ return r.json(); }).then(function(d){
+    const place = d.city || d.locality || d.principalSubdivision || '';
+    if(place){
+      const condition = wPlace.dataset.condition || '';
+      wPlace.textContent = place + (condition ? ' ・ ' + condition : '');
+    }
+  }).catch(function(){});
+}
+
+function fetchWeather(lat, lon){
+  const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon + '&current_weather=true&timezone=auto';
+  fetch(url).then(function(r){ return r.json(); }).then(function(d){
+    const cw = d.current_weather;
+    if(!cw) return;
+    const w = weatherEmoji(cw.weathercode);
+    wIcon.textContent = w.icon;
+    wTemp.textContent = Math.round(cw.temperature) + '℃';
+    wPlace.dataset.condition = w.text;
+    wPlace.textContent = w.text;
+    fetchPlaceName(lat, lon);
+  }).catch(function(){
+    wPlace.textContent = '天気を取得できませんでした';
+  });
+}
+
+function loadWeather(){
+  const cached = localStorage.getItem(COORD_KEY);
+  if(cached){
+    try{
+      const c = JSON.parse(cached);
+      fetchWeather(c.lat, c.lon);
+    }catch(e){}
+  }else{
+    wPlace.textContent = '位置情報を取得中...';
+  }
+
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(function(pos){
+      const lat = pos.coords.latitude;
+      const lon = pos.coords.longitude;
+      localStorage.setItem(COORD_KEY, JSON.stringify({lat:lat, lon:lon}));
+      fetchWeather(lat, lon);
+    }, function(err){
+      if(!cached){
+        wPlace.textContent = '位置情報が許可されていません';
+        wIcon.textContent = '📍';
+      }
+    });
+  }
+}
+
+wReload.addEventListener('click', function(){
+  wPlace.textContent = '更新中...';
+  loadWeather();
+});
+
+loadWeather();
+
+/* service worker */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+</script>
+</body>
+</html>
