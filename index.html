@@ -333,6 +333,62 @@
   }
   .add-card .ic{background:transparent;font-size:28px;color:var(--sub);}
 
+  /* wide banner links */
+  .banner-links{
+    display:flex;flex-direction:column;gap:12px;
+    margin-top:14px;
+  }
+  .banner-link-card{
+    position:relative;
+    display:block;
+    border-radius:14px;
+    overflow:hidden;
+    background:var(--card);
+    box-shadow:0 2px 8px rgba(0,0,0,.06);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  }
+  .banner-link-card img{
+    width:100%;display:block;
+  }
+  .banner-link-card .edit-btn{
+    position:absolute;
+    top:6px;right:6px;
+    width:26px;height:26px;
+    border-radius:50%;
+    background:rgba(0,0,0,.35);
+    border:none;
+    color:#fff;
+    font-size:12px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .banner-link-empty{
+    padding:24px 14px;
+    text-align:center;
+    font-size:12px;
+    color:var(--sub);
+  }
+  .banner-link-add{
+    border:2px dashed var(--border);
+    border-radius:14px;
+    height:54px;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--sub);
+    font-size:24px;
+    background:transparent;
+  }
+  .link-preview{
+    width:100%;
+    min-height:60px;
+    border-radius:10px;
+    background:var(--card2);
+    display:flex;align-items:center;justify-content:center;
+    overflow:hidden;
+    color:var(--sub);
+    font-size:12px;
+    margin-top:6px;
+  }
+  .link-preview img{width:100%;display:block;}
+
   /* modal */
   .overlay{
     position:fixed;inset:0;
@@ -455,6 +511,8 @@
 
       <div class="grid" id="appGrid"></div>
 
+      <div class="banner-links" id="bannerLinks"></div>
+
     </div>
   </div>
 
@@ -494,6 +552,27 @@
     </div>
     <div class="sheet-actions" id="deleteRow" style="display:none;">
       <button class="btn-delete" id="btnDelete">このアプリを削除</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="linkOverlay">
+  <div class="sheet">
+    <h2 id="linkSheetTitle">横長リンクを追加</h2>
+    <label>リンク先URL(任意)</label>
+    <input type="url" id="linkUrl" placeholder="https://example.com/">
+    <label>画像</label>
+    <div class="link-preview" id="linkPreview">画像未設定</div>
+    <div class="sheet-actions">
+      <label class="btn-cancel" for="linkFile" style="text-align:center;display:flex;align-items:center;justify-content:center;">🖼️ 画像を選択</label>
+      <input type="file" id="linkFile" accept="image/*" style="display:none;">
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="linkCancel">キャンセル</button>
+      <button class="btn-save" id="linkSave">保存</button>
+    </div>
+    <div class="sheet-actions" id="linkDeleteRow" style="display:none;">
+      <button class="btn-delete" id="linkDelete">このリンクを削除</button>
     </div>
   </div>
 </div>
@@ -745,6 +824,169 @@ document.getElementById('btnDelete').addEventListener('click', function(){
 });
 
 renderGrid();
+
+/* ---- wide banner links ---- */
+const LINKS_KEY = 'launcherBannerLinks';
+const linksContainer = document.getElementById('bannerLinks');
+let bannerLinks = loadBannerLinks();
+let editingLinkId = null;
+let pickedLinkImage = null;
+
+function loadBannerLinks(){
+  const raw = localStorage.getItem(LINKS_KEY);
+  if(!raw) return [];
+  try{
+    const arr = JSON.parse(raw);
+    if(Array.isArray(arr)) return arr;
+  }catch(e){}
+  return [];
+}
+function saveBannerLinks(){
+  localStorage.setItem(LINKS_KEY, JSON.stringify(bannerLinks));
+}
+
+function renderBannerLinks(){
+  linksContainer.innerHTML = '';
+  bannerLinks.forEach(function(item){
+    const card = document.createElement('div');
+    card.className = 'banner-link-card';
+
+    if(item.image){
+      const img = document.createElement('img');
+      img.src = item.image;
+      img.alt = '';
+      card.appendChild(img);
+    }else{
+      const empty = document.createElement('div');
+      empty.className = 'banner-link-empty';
+      empty.textContent = '画像未設定(タップして設定)';
+      card.appendChild(empty);
+    }
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'edit-btn';
+    editBtn.textContent = '✏️';
+    editBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      e.preventDefault();
+      openLinkEdit(item.id);
+    });
+    card.appendChild(editBtn);
+
+    card.addEventListener('click', function(){
+      if(item.url){
+        launchApp(item.url);
+      }else{
+        openLinkEdit(item.id);
+      }
+    });
+
+    linksContainer.appendChild(card);
+  });
+
+  const addCard = document.createElement('div');
+  addCard.className = 'banner-link-add';
+  addCard.textContent = '+';
+  addCard.addEventListener('click', function(){ openLinkAdd(); });
+  linksContainer.appendChild(addCard);
+}
+
+const linkOverlay = document.getElementById('linkOverlay');
+const linkSheetTitle = document.getElementById('linkSheetTitle');
+const linkUrlInput = document.getElementById('linkUrl');
+const linkFileInput = document.getElementById('linkFile');
+const linkPreview = document.getElementById('linkPreview');
+const linkDeleteRow = document.getElementById('linkDeleteRow');
+
+function showLinkPreview(src){
+  linkPreview.innerHTML = '';
+  if(src){
+    const img = document.createElement('img');
+    img.src = src;
+    linkPreview.appendChild(img);
+  }else{
+    linkPreview.textContent = '画像未設定';
+  }
+}
+
+function openLinkAdd(){
+  editingLinkId = null;
+  pickedLinkImage = null;
+  linkSheetTitle.textContent = '横長リンクを追加';
+  linkUrlInput.value = '';
+  linkDeleteRow.style.display = 'none';
+  showLinkPreview(null);
+  linkOverlay.classList.add('show');
+}
+
+function openLinkEdit(id){
+  const item = bannerLinks.find(function(a){ return a.id === id; });
+  if(!item) return;
+  editingLinkId = id;
+  pickedLinkImage = item.image || null;
+  linkSheetTitle.textContent = '横長リンクを編集';
+  linkUrlInput.value = item.url || '';
+  linkDeleteRow.style.display = 'flex';
+  showLinkPreview(item.image);
+  linkOverlay.classList.add('show');
+}
+
+function closeLinkSheet(){
+  linkOverlay.classList.remove('show');
+}
+
+document.getElementById('linkCancel').addEventListener('click', closeLinkSheet);
+
+linkFileInput.addEventListener('change', function(){
+  const file = linkFileInput.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = function(){
+      const maxW = 1080;
+      const scale = Math.min(1, maxW / img.width);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      pickedLinkImage = canvas.toDataURL('image/jpeg', 0.85);
+      showLinkPreview(pickedLinkImage);
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('linkSave').addEventListener('click', function(){
+  const url = linkUrlInput.value.trim();
+  if(editingLinkId){
+    const item = bannerLinks.find(function(a){ return a.id === editingLinkId; });
+    item.url = url;
+    item.image = pickedLinkImage;
+  }else{
+    if(!pickedLinkImage && !url) return;
+    bannerLinks.push({
+      id: 'link_' + Date.now(),
+      url: url,
+      image: pickedLinkImage
+    });
+  }
+  saveBannerLinks();
+  renderBannerLinks();
+  closeLinkSheet();
+});
+
+document.getElementById('linkDelete').addEventListener('click', function(){
+  bannerLinks = bannerLinks.filter(function(a){ return a.id !== editingLinkId; });
+  saveBannerLinks();
+  renderBannerLinks();
+  closeLinkSheet();
+});
+
+renderBannerLinks();
 
 /* ---- theme toggle ---- */
 const THEME_KEY = 'launcherTheme';
