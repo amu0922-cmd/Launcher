@@ -350,6 +350,19 @@
   .banner-link-card img{
     width:100%;display:block;
   }
+  .banner-link-overlay{
+    position:absolute;inset:0;
+    display:flex;align-items:flex-end;
+    padding:12px 14px;
+    background:linear-gradient(to top, rgba(0,0,0,.6), rgba(0,0,0,0) 55%);
+    pointer-events:none;
+  }
+  .banner-link-title{
+    color:#fff;
+    font-size:14px;font-weight:800;
+    letter-spacing:.03em;
+    text-shadow:0 1px 4px rgba(0,0,0,.5);
+  }
   .banner-link-card .edit-btn{
     position:absolute;
     top:6px;right:6px;
@@ -509,7 +522,7 @@
         <div class="suggest-list" id="suggestList"></div>
       </div>
 
-      <div class="grid" id="appGrid"></div>
+      <div class="grid" id="appGrid" style="display:none;"></div>
 
       <div class="banner-links" id="bannerLinks"></div>
 
@@ -559,6 +572,8 @@
 <div class="overlay" id="linkOverlay">
   <div class="sheet">
     <h2 id="linkSheetTitle">横長リンクを追加</h2>
+    <label>タイトル(任意・画像の左下に表示)</label>
+    <input type="text" id="linkTitle" placeholder="例: 競馬ラボ">
     <label>リンク先URL(任意)</label>
     <input type="url" id="linkUrl" placeholder="https://example.com/">
     <label>画像</label>
@@ -863,6 +878,16 @@ function renderBannerLinks(){
       card.appendChild(empty);
     }
 
+    if(item.title){
+      const overlay = document.createElement('div');
+      overlay.className = 'banner-link-overlay';
+      const titleEl = document.createElement('div');
+      titleEl.className = 'banner-link-title';
+      titleEl.textContent = item.title;
+      overlay.appendChild(titleEl);
+      card.appendChild(overlay);
+    }
+
     const editBtn = document.createElement('button');
     editBtn.className = 'edit-btn';
     editBtn.textContent = '✏️';
@@ -893,6 +918,7 @@ function renderBannerLinks(){
 
 const linkOverlay = document.getElementById('linkOverlay');
 const linkSheetTitle = document.getElementById('linkSheetTitle');
+const linkTitleInput = document.getElementById('linkTitle');
 const linkUrlInput = document.getElementById('linkUrl');
 const linkFileInput = document.getElementById('linkFile');
 const linkPreview = document.getElementById('linkPreview');
@@ -913,6 +939,7 @@ function openLinkAdd(){
   editingLinkId = null;
   pickedLinkImage = null;
   linkSheetTitle.textContent = '横長リンクを追加';
+  linkTitleInput.value = '';
   linkUrlInput.value = '';
   linkDeleteRow.style.display = 'none';
   showLinkPreview(null);
@@ -925,6 +952,7 @@ function openLinkEdit(id){
   editingLinkId = id;
   pickedLinkImage = item.image || null;
   linkSheetTitle.textContent = '横長リンクを編集';
+  linkTitleInput.value = item.title || '';
   linkUrlInput.value = item.url || '';
   linkDeleteRow.style.display = 'flex';
   showLinkPreview(item.image);
@@ -962,15 +990,18 @@ linkFileInput.addEventListener('change', function(){
 
 document.getElementById('linkSave').addEventListener('click', function(){
   const url = linkUrlInput.value.trim();
+  const title = linkTitleInput.value.trim();
   if(editingLinkId){
     const item = bannerLinks.find(function(a){ return a.id === editingLinkId; });
     item.url = url;
+    item.title = title;
     item.image = pickedLinkImage;
   }else{
     if(!pickedLinkImage && !url) return;
     bannerLinks.push({
       id: 'link_' + Date.now(),
       url: url,
+      title: title,
       image: pickedLinkImage
     });
   }
