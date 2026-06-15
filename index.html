@@ -73,23 +73,39 @@
     font-size:15px;display:flex;align-items:center;justify-content:center;
   }
 
-  /* toolbar */
-  .toolbar{
-    display:flex;
-    justify-content:flex-end;
-    gap:8px;
-    margin:10px 0 0;
+  /* banner action buttons (refresh / settings) */
+  .banner-actions{
+    position:absolute;bottom:10px;right:10px;z-index:2;
+    display:flex;gap:8px;
   }
-  .icon-btn{
+  .banner-icon-btn{
+    width:34px;height:34px;border-radius:50%;
+    border:none;background:rgba(0,0,0,.45);color:#fff;
+    font-size:15px;display:flex;align-items:center;justify-content:center;
+  }
+
+  /* feed */
+  .feed-section{margin-top:18px;}
+  .feed-heading{
+    font-size:13px;font-weight:800;color:var(--text);
+    margin-bottom:8px;display:flex;align-items:center;gap:6px;
+  }
+  .feed-list{display:flex;flex-direction:column;gap:8px;}
+  .feed-card{
+    display:block;
     background:var(--card);
-    border:none;
-    width:36px;height:36px;
-    border-radius:50%;
-    font-size:16px;
-    display:flex;align-items:center;justify-content:center;
-    box-shadow:0 1px 4px rgba(0,0,0,.08);
+    border-radius:14px;
+    padding:12px 14px;
+    text-decoration:none;
     color:var(--text);
+    box-shadow:0 2px 6px rgba(0,0,0,.06);
   }
+  .feed-card-title{
+    font-size:13px;font-weight:700;line-height:1.4;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .feed-meta{font-size:11px;color:var(--sub);margin-top:5px;}
+  .feed-empty{font-size:12px;color:var(--sub);padding:10px 2px;}
 
   /* divider */
   .divider{
@@ -320,12 +336,11 @@
       <div class="banner-sub">Quick Search & App Launch</div>
     </div>
     <button class="banner-edit" id="bannerEditBtn" title="画像を変更">📷</button>
+    <div class="banner-actions">
+      <button class="banner-icon-btn" id="refreshBtn" title="更新">🔄</button>
+      <button class="banner-icon-btn" id="settingsBtn" title="設定">⚙️</button>
+    </div>
     <input type="file" id="bannerFile" accept="image/*" style="display:none;">
-  </div>
-
-  <div class="toolbar">
-    <button class="icon-btn" id="refreshBtn" title="更新">🔄</button>
-    <button class="icon-btn" id="settingsBtn" title="設定">⚙️</button>
   </div>
 
   <div class="divider"></div>
@@ -352,6 +367,11 @@
   </div>
 
   <div class="grid" id="appGrid"></div>
+
+  <div class="feed-section">
+    <div class="feed-heading">📰 フィード</div>
+    <div class="feed-list" id="feedList"></div>
+  </div>
 </div>
 
 <div class="overlay" id="overlay">
@@ -389,6 +409,16 @@
       <button class="btn-cancel" id="resetBannerBtn">🖼️ ヘッダー画像をリセット</button>
     </div>
     <div class="sheet-actions">
+      <label class="btn-cancel" for="bgFile" style="text-align:center;display:flex;align-items:center;justify-content:center;">🌄 背景画像を設定</label>
+      <input type="file" id="bgFile" accept="image/*" style="display:none;">
+      <button class="btn-cancel" id="resetBgBtn">背景をリセット</button>
+    </div>
+    <label>フィードのRSS URL</label>
+    <input type="text" id="feedUrlInput" placeholder="https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja">
+    <div class="sheet-actions">
+      <button class="btn-save" id="saveFeedBtn">フィードを更新</button>
+    </div>
+    <div class="sheet-actions">
       <button class="btn-cancel" id="settingsCloseBtn">閉じる</button>
     </div>
   </div>
@@ -398,6 +428,9 @@
 const STORAGE_KEY = 'launcherApps';
 const COORD_KEY = 'launcherCoords';
 const BANNER_KEY = 'launcherBanner';
+const BG_KEY = 'launcherBackground';
+const FEED_KEY = 'launcherFeedUrl';
+const DEFAULT_FEED = 'https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja';
 
 const defaultApps = [
   {id:'keiba',  name:'競馬予想', url:'', icon:'icons/keiba.png'},
@@ -840,6 +873,115 @@ bannerFile.addEventListener('change', function(){
   reader.readAsDataURL(file);
 });
 
+/* ---- background image ---- */
+const bgFile = document.getElementById('bgFile');
+const resetBgBtn = document.getElementById('resetBgBtn');
+
+function applyBackground(){
+  const data = localStorage.getItem(BG_KEY);
+  if(data){
+    document.body.style.backgroundImage = 'url(' + data + ')';
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundRepeat = 'no-repeat';
+    document.body.style.backgroundAttachment = 'fixed';
+  }else{
+    document.body.style.backgroundImage = '';
+  }
+}
+applyBackground();
+
+bgFile.addEventListener('change', function(){
+  const file = bgFile.files[0];
+  bgFile.value = '';
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    const img = new Image();
+    img.onload = function(){
+      const maxW = 1080;
+      const scale = Math.min(1, maxW / img.width);
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      try{
+        localStorage.setItem(BG_KEY, dataUrl);
+        applyBackground();
+      }catch(e){
+        alert('画像の保存に失敗しました(サイズが大きすぎるかも)');
+      }
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+});
+
+resetBgBtn.addEventListener('click', function(){
+  localStorage.removeItem(BG_KEY);
+  applyBackground();
+});
+
+/* ---- feed ---- */
+const feedList = document.getElementById('feedList');
+
+function formatRelative(pubDate){
+  const d = new Date(pubDate);
+  if(isNaN(d.getTime())) return '';
+  const diffMs = Date.now() - d.getTime();
+  const diffH = Math.floor(diffMs / 3600000);
+  if(diffH < 1) return '1時間以内';
+  if(diffH < 24) return diffH + '時間前';
+  return Math.floor(diffH / 24) + '日前';
+}
+
+function renderFeed(items){
+  feedList.innerHTML = '';
+  if(!items || !items.length){
+    const empty = document.createElement('div');
+    empty.className = 'feed-empty';
+    empty.textContent = 'フィードを取得できませんでした';
+    feedList.appendChild(empty);
+    return;
+  }
+  items.slice(0, 8).forEach(function(item){
+    const card = document.createElement('a');
+    card.className = 'feed-card';
+    card.href = item.link;
+    card.target = '_blank';
+    card.rel = 'noopener';
+
+    const title = document.createElement('div');
+    title.className = 'feed-card-title';
+    title.textContent = item.title || '';
+
+    const meta = document.createElement('div');
+    meta.className = 'feed-meta';
+    const src = (item.source && item.source.name) || item.author || '';
+    const date = formatRelative(item.pubDate);
+    meta.textContent = [src, date].filter(Boolean).join(' ・ ');
+
+    card.appendChild(title);
+    card.appendChild(meta);
+    feedList.appendChild(card);
+  });
+}
+
+function loadFeed(){
+  const feedUrl = localStorage.getItem(FEED_KEY) || DEFAULT_FEED;
+  const api = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feedUrl);
+  feedList.innerHTML = '<div class="feed-empty">読み込み中...</div>';
+  fetch(api).then(function(r){ return r.json(); }).then(function(d){
+    renderFeed(d.items || []);
+  }).catch(function(){
+    renderFeed([]);
+  });
+}
+loadFeed();
+
 /* ---- refresh button ---- */
 document.getElementById('refreshBtn').addEventListener('click', function(){
   if('serviceWorker' in navigator && 'caches' in window){
@@ -864,9 +1006,23 @@ document.getElementById('refreshBtn').addEventListener('click', function(){
 const settingsOverlay = document.getElementById('settingsOverlay');
 
 document.getElementById('settingsBtn').addEventListener('click', function(){
+  feedUrlInput.value = localStorage.getItem(FEED_KEY) || DEFAULT_FEED;
   settingsOverlay.classList.add('show');
 });
 document.getElementById('settingsCloseBtn').addEventListener('click', function(){
+  settingsOverlay.classList.remove('show');
+});
+
+const feedUrlInput = document.getElementById('feedUrlInput');
+document.getElementById('saveFeedBtn').addEventListener('click', function(){
+  const url = feedUrlInput.value.trim();
+  if(url){
+    localStorage.setItem(FEED_KEY, url);
+  }else{
+    localStorage.removeItem(FEED_KEY);
+    feedUrlInput.value = DEFAULT_FEED;
+  }
+  loadFeed();
   settingsOverlay.classList.remove('show');
 });
 
