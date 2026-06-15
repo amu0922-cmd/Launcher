@@ -372,6 +372,19 @@
     -webkit-appearance:none;
     appearance:none;
   }
+  .feed-checks{
+    display:flex;flex-direction:column;gap:6px;margin-top:6px;
+  }
+  .feed-checks label{
+    display:flex;align-items:center;gap:10px;
+    background:var(--card2);
+    border-radius:10px;
+    padding:10px 12px;
+    font-size:13px;
+    color:var(--text);
+    margin:0;
+  }
+  .feed-checks input{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;}
   .icon-pick{
     display:flex;align-items:center;gap:12px;margin-top:6px;
   }
@@ -507,19 +520,10 @@
       <input type="file" id="bgFile" accept="image/*" style="display:none;">
       <button class="btn-cancel" id="resetBgBtn">背景をリセット</button>
     </div>
-    <label>フィードを選択</label>
-    <select id="feedPreset">
-      <option value="https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja">📰 総合(Googleニュース)</option>
-      <option value="https://news.yahoo.co.jp/rss/topics/top-picks.xml">Yahoo!ニュース 主要</option>
-      <option value="https://www3.nhk.or.jp/rss/news/cat0.xml">NHKニュース</option>
-      <option value="https://news.google.com/rss/headlines/section/topic/SPORTS?hl=ja&gl=JP&ceid=JP:ja">スポーツ</option>
-      <option value="https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=ja&gl=JP&ceid=JP:ja">経済</option>
-      <option value="https://news.google.com/rss/search?q=競馬&hl=ja&gl=JP&ceid=JP:ja">🐎 競馬ニュース</option>
-      <option value="https://news.google.com/rss/search?q=JRA&hl=ja&gl=JP&ceid=JP:ja">🐎 JRA関連</option>
-      <option value="custom">カスタムURL</option>
-    </select>
-    <label>フィードのRSS URL</label>
-    <input type="text" id="feedUrlInput" placeholder="https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja">
+    <label>フィード選択(複数可)</label>
+    <div class="feed-checks" id="feedChecks"></div>
+    <label>カスタムRSS URL(任意・1件)</label>
+    <input type="text" id="feedUrlInput" placeholder="https://...">
     <div class="sheet-actions">
       <button class="btn-save" id="saveFeedBtn">フィードを更新</button>
     </div>
@@ -534,8 +538,17 @@ const STORAGE_KEY = 'launcherApps';
 const COORD_KEY = 'launcherCoords';
 const BANNER_KEY = 'launcherBanner';
 const BG_KEY = 'launcherBackground';
-const FEED_KEY = 'launcherFeedUrl';
-const DEFAULT_FEED = 'https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja';
+const FEED_KEY = 'launcherFeeds';
+const FEED_PRESETS = [
+  {url:'https://news.google.com/rss?hl=ja&gl=JP&ceid=JP:ja', label:'📰 総合(Googleニュース)'},
+  {url:'https://news.yahoo.co.jp/rss/topics/top-picks.xml', label:'Yahoo!ニュース 主要'},
+  {url:'https://www3.nhk.or.jp/rss/news/cat0.xml', label:'NHKニュース'},
+  {url:'https://news.google.com/rss/headlines/section/topic/SPORTS?hl=ja&gl=JP&ceid=JP:ja', label:'スポーツ'},
+  {url:'https://news.google.com/rss/headlines/section/topic/BUSINESS?hl=ja&gl=JP&ceid=JP:ja', label:'経済'},
+  {url:'https://news.google.com/rss/search?q=競馬&hl=ja&gl=JP&ceid=JP:ja', label:'🐎 競馬ニュース'},
+  {url:'https://news.google.com/rss/search?q=JRA&hl=ja&gl=JP&ceid=JP:ja', label:'🐎 JRA関連'}
+];
+const DEFAULT_FEEDS = [FEED_PRESETS[0].url];
 
 const defaultApps = [
   {id:'keiba',  name:'競馬予想', url:'', icon:'icons/keiba.png'},
@@ -1075,6 +1088,9 @@ function formatRelative(pubDate){
 
 function extractThumb(item){
   if(item.thumbnail) return item.thumbnail;
+  if(item.enclosure && item.enclosure.link && /^image\//.test(item.enclosure.type || '')){
+    return item.enclosure.link;
+  }
   const html = item.description || item.content || '';
   const m = html.match(/<img[^>]+src="([^"]+)"/i);
   return m ? m[1] : '';
@@ -1089,7 +1105,7 @@ function renderFeed(items){
     feedList.appendChild(empty);
     return;
   }
-  items.slice(0, 8).forEach(function(item){
+  items.slice(0, 14).forEach(function(item){
     const card = document.createElement('a');
     card.className = 'feed-card';
     card.href = item.link;
@@ -1135,14 +1151,35 @@ function renderFeed(items){
   });
 }
 
+function getSavedFeeds(){
+  const raw = localStorage.getItem(FEED_KEY);
+  if(!raw) return DEFAULT_FEEDS.slice();
+  try{
+    const arr = JSON.parse(raw);
+    if(Array.isArray(arr) && arr.length) return arr;
+  }catch(e){
+    // legacy: previously stored as a plain URL string
+    if(raw.indexOf('http') === 0) return [raw];
+  }
+  return DEFAULT_FEEDS.slice();
+}
+
 function loadFeed(){
-  const feedUrl = localStorage.getItem(FEED_KEY) || DEFAULT_FEED;
-  const api = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(feedUrl);
+  const feeds = getSavedFeeds();
   feedList.innerHTML = '<div class="feed-empty">読み込み中...</div>';
-  fetch(api).then(function(r){ return r.json(); }).then(function(d){
-    renderFeed(d.items || []);
-  }).catch(function(){
-    renderFeed([]);
+  const requests = feeds.map(function(url){
+    const api = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(url);
+    return fetch(api).then(function(r){ return r.json(); }).then(function(d){
+      return d.items || [];
+    }).catch(function(){ return []; });
+  });
+  Promise.all(requests).then(function(results){
+    let all = [];
+    results.forEach(function(items){ all = all.concat(items); });
+    all.sort(function(a, b){
+      return new Date(b.pubDate) - new Date(a.pubDate);
+    });
+    renderFeed(all);
   });
 }
 loadFeed();
@@ -1169,32 +1206,38 @@ document.getElementById('refreshBtn').addEventListener('click', function(){
 
 /* ---- settings: backup / restore ---- */
 const settingsOverlay = document.getElementById('settingsOverlay');
+const feedUrlInput = document.getElementById('feedUrlInput');
+const feedChecks = document.getElementById('feedChecks');
+
+FEED_PRESETS.forEach(function(preset, i){
+  const label = document.createElement('label');
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.value = preset.url;
+  cb.id = 'feedCheck_' + i;
+  const span = document.createElement('span');
+  span.textContent = preset.label;
+  label.appendChild(cb);
+  label.appendChild(span);
+  feedChecks.appendChild(label);
+});
 
 document.getElementById('settingsBtn').addEventListener('click', function(){
-  const cur = localStorage.getItem(FEED_KEY) || DEFAULT_FEED;
-  feedUrlInput.value = cur;
-  let matched = false;
-  for(let i = 0; i < feedPresetSelect.options.length; i++){
-    if(feedPresetSelect.options[i].value === cur){
-      feedPresetSelect.value = cur;
-      matched = true;
-      break;
-    }
-  }
-  if(!matched) feedPresetSelect.value = 'custom';
+  const saved = getSavedFeeds();
+  let customUrl = '';
+  const checks = feedChecks.querySelectorAll('input[type=checkbox]');
+  checks.forEach(function(cb){
+    cb.checked = saved.indexOf(cb.value) !== -1;
+  });
+  saved.forEach(function(url){
+    const isPreset = FEED_PRESETS.some(function(p){ return p.url === url; });
+    if(!isPreset) customUrl = url;
+  });
+  feedUrlInput.value = customUrl;
   settingsOverlay.classList.add('show');
 });
 document.getElementById('settingsCloseBtn').addEventListener('click', function(){
   settingsOverlay.classList.remove('show');
-});
-
-const feedUrlInput = document.getElementById('feedUrlInput');
-const feedPresetSelect = document.getElementById('feedPreset');
-
-feedPresetSelect.addEventListener('change', function(){
-  if(this.value !== 'custom'){
-    feedUrlInput.value = this.value;
-  }
 });
 
 document.getElementById('feedRefreshBtn').addEventListener('click', function(){
@@ -1202,12 +1245,18 @@ document.getElementById('feedRefreshBtn').addEventListener('click', function(){
 });
 
 document.getElementById('saveFeedBtn').addEventListener('click', function(){
-  const url = feedUrlInput.value.trim();
-  if(url){
-    localStorage.setItem(FEED_KEY, url);
-  }else{
+  const selected = [];
+  const checks = feedChecks.querySelectorAll('input[type=checkbox]');
+  checks.forEach(function(cb){
+    if(cb.checked) selected.push(cb.value);
+  });
+  const custom = feedUrlInput.value.trim();
+  if(custom) selected.push(custom);
+
+  if(!selected.length){
     localStorage.removeItem(FEED_KEY);
-    feedUrlInput.value = DEFAULT_FEED;
+  }else{
+    localStorage.setItem(FEED_KEY, JSON.stringify(selected));
   }
   loadFeed();
   settingsOverlay.classList.remove('show');
