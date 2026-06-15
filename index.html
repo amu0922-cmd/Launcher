@@ -333,6 +333,29 @@
   }
   .add-card .ic{background:transparent;font-size:28px;color:var(--sub);}
 
+  /* category tabs */
+  .category-tabs{
+    display:none;
+    gap:8px;
+    overflow-x:auto;
+    margin-top:14px;
+    padding-bottom:2px;
+  }
+  .category-tab{
+    flex:0 0 auto;
+    padding:8px 16px;
+    border-radius:999px;
+    border:1.5px solid var(--border);
+    background:var(--card);
+    color:var(--text);
+    font-size:13px;font-weight:700;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  }
+  .category-tab.active{
+    border-color:var(--accent);
+    color:var(--accent);
+  }
+
   /* wide banner links */
   .banner-links{
     display:flex;flex-direction:column;gap:12px;
@@ -341,7 +364,7 @@
   .banner-link-card{
     position:relative;
     display:block;
-    height:500px;
+    aspect-ratio:3/1;
     border-radius:14px;
     overflow:hidden;
     background:var(--card);
@@ -526,6 +549,7 @@
 
       <div class="grid" id="appGrid" style="display:none;"></div>
 
+      <div class="category-tabs" id="categoryTabs"></div>
       <div class="banner-links" id="bannerLinks"></div>
 
     </div>
@@ -576,6 +600,8 @@
     <h2 id="linkSheetTitle">横長リンクを追加</h2>
     <label>タイトル(任意・画像の左下に表示)</label>
     <input type="text" id="linkTitle" placeholder="例: 競馬ラボ">
+    <label>カテゴリ(任意・タブで切り替え)</label>
+    <input type="text" id="linkCategory" placeholder="例: 競馬">
     <label>リンク先URL(任意)</label>
     <input type="url" id="linkUrl" placeholder="https://example.com/">
     <label>画像</label>
@@ -844,8 +870,11 @@ renderGrid();
 
 /* ---- wide banner links ---- */
 const LINKS_KEY = 'launcherBannerLinks';
+const CATEGORY_KEY = 'launcherBannerCategory';
 const linksContainer = document.getElementById('bannerLinks');
+const categoryTabsEl = document.getElementById('categoryTabs');
 let bannerLinks = loadBannerLinks();
+let currentCategory = localStorage.getItem(CATEGORY_KEY) || 'すべて';
 let editingLinkId = null;
 let pickedLinkImage = null;
 
@@ -862,9 +891,58 @@ function saveBannerLinks(){
   localStorage.setItem(LINKS_KEY, JSON.stringify(bannerLinks));
 }
 
+function getCategoryList(){
+  const set = new Set();
+  let hasUncategorized = false;
+  bannerLinks.forEach(function(item){
+    if(item.category && item.category.trim()){
+      set.add(item.category.trim());
+    }else{
+      hasUncategorized = true;
+    }
+  });
+  const cats = Array.from(set);
+  if(hasUncategorized) cats.push('未分類');
+  return cats;
+}
+
+function renderCategoryTabs(){
+  const cats = getCategoryList();
+  categoryTabsEl.innerHTML = '';
+  if(!cats.length){
+    categoryTabsEl.style.display = 'none';
+    currentCategory = 'すべて';
+    localStorage.setItem(CATEGORY_KEY, currentCategory);
+    return;
+  }
+  const all = ['すべて'].concat(cats);
+  if(all.indexOf(currentCategory) === -1) currentCategory = 'すべて';
+  categoryTabsEl.style.display = 'flex';
+  all.forEach(function(cat){
+    const tab = document.createElement('button');
+    tab.className = 'category-tab' + (cat === currentCategory ? ' active' : '');
+    tab.textContent = cat;
+    tab.addEventListener('click', function(){
+      currentCategory = cat;
+      localStorage.setItem(CATEGORY_KEY, currentCategory);
+      renderCategoryTabs();
+      renderBannerLinks();
+    });
+    categoryTabsEl.appendChild(tab);
+  });
+}
+
+function getFilteredLinks(){
+  if(currentCategory === 'すべて') return bannerLinks;
+  return bannerLinks.filter(function(item){
+    const cat = (item.category && item.category.trim()) || '未分類';
+    return cat === currentCategory;
+  });
+}
+
 function renderBannerLinks(){
   linksContainer.innerHTML = '';
-  bannerLinks.forEach(function(item){
+  getFilteredLinks().forEach(function(item){
     const card = document.createElement('div');
     card.className = 'banner-link-card';
 
@@ -921,6 +999,7 @@ function renderBannerLinks(){
 const linkOverlay = document.getElementById('linkOverlay');
 const linkSheetTitle = document.getElementById('linkSheetTitle');
 const linkTitleInput = document.getElementById('linkTitle');
+const linkCategoryInput = document.getElementById('linkCategory');
 const linkUrlInput = document.getElementById('linkUrl');
 const linkFileInput = document.getElementById('linkFile');
 const linkPreview = document.getElementById('linkPreview');
@@ -942,6 +1021,7 @@ function openLinkAdd(){
   pickedLinkImage = null;
   linkSheetTitle.textContent = '横長リンクを追加';
   linkTitleInput.value = '';
+  linkCategoryInput.value = (currentCategory !== 'すべて' && currentCategory !== '未分類') ? currentCategory : '';
   linkUrlInput.value = '';
   linkDeleteRow.style.display = 'none';
   showLinkPreview(null);
@@ -955,6 +1035,7 @@ function openLinkEdit(id){
   pickedLinkImage = item.image || null;
   linkSheetTitle.textContent = '横長リンクを編集';
   linkTitleInput.value = item.title || '';
+  linkCategoryInput.value = item.category || '';
   linkUrlInput.value = item.url || '';
   linkDeleteRow.style.display = 'flex';
   showLinkPreview(item.image);
@@ -993,10 +1074,12 @@ linkFileInput.addEventListener('change', function(){
 document.getElementById('linkSave').addEventListener('click', function(){
   const url = linkUrlInput.value.trim();
   const title = linkTitleInput.value.trim();
+  const category = linkCategoryInput.value.trim();
   if(editingLinkId){
     const item = bannerLinks.find(function(a){ return a.id === editingLinkId; });
     item.url = url;
     item.title = title;
+    item.category = category;
     item.image = pickedLinkImage;
   }else{
     if(!pickedLinkImage && !url) return;
@@ -1004,10 +1087,12 @@ document.getElementById('linkSave').addEventListener('click', function(){
       id: 'link_' + Date.now(),
       url: url,
       title: title,
+      category: category,
       image: pickedLinkImage
     });
   }
   saveBannerLinks();
+  renderCategoryTabs();
   renderBannerLinks();
   closeLinkSheet();
 });
@@ -1015,10 +1100,12 @@ document.getElementById('linkSave').addEventListener('click', function(){
 document.getElementById('linkDelete').addEventListener('click', function(){
   bannerLinks = bannerLinks.filter(function(a){ return a.id !== editingLinkId; });
   saveBannerLinks();
+  renderCategoryTabs();
   renderBannerLinks();
   closeLinkSheet();
 });
 
+renderCategoryTabs();
 renderBannerLinks();
 
 /* ---- theme toggle ---- */
