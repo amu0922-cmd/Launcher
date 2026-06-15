@@ -587,11 +587,21 @@
     </div>
   </div>
 
+  <div class="page" id="pageFavorites">
+    <div class="wrap">
+      <div class="page-header">
+        <h2>⭐ お気に入り</h2>
+      </div>
+      <div class="feed-list" id="favoritesList"></div>
+    </div>
+  </div>
+
 </div>
 
 <div class="page-dots">
   <span class="dot active" data-page="0"></span>
   <span class="dot" data-page="1"></span>
+  <span class="dot" data-page="2"></span>
 </div>
 
 <div class="overlay" id="overlay">
@@ -645,6 +655,7 @@
 <div class="overlay" id="settingsOverlay">
   <div class="sheet">
     <h2>設定</h2>
+    <div id="storageUsage" style="font-size:11px;color:var(--sub);margin-bottom:10px;">使用容量: 計算中...</div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="exportBtn">📤 書き出し</button>
       <label class="btn-save" for="importFile" style="text-align:center;display:flex;align-items:center;justify-content:center;">📥 読み込み</label>
@@ -914,7 +925,13 @@ function loadBannerLinks(){
   return [];
 }
 function saveBannerLinks(){
-  localStorage.setItem(LINKS_KEY, JSON.stringify(bannerLinks));
+  try{
+    localStorage.setItem(LINKS_KEY, JSON.stringify(bannerLinks));
+    return true;
+  }catch(e){
+    alert('保存に失敗しました。端末の保存容量がいっぱいの可能性があります。⚙️設定の「使用容量」を確認し、不要な画像を減らすか書き出し(バックアップ)してから整理してください。');
+    return false;
+  }
 }
 
 function getCategoryList(){
@@ -1153,7 +1170,7 @@ linkFileInput.addEventListener('change', function(){
   reader.onload = function(ev){
     const img = new Image();
     img.onload = function(){
-      const maxW = 1080;
+      const maxW = 800;
       const scale = Math.min(1, maxW / img.width);
       const w = Math.round(img.width * scale);
       const h = Math.round(img.height * scale);
@@ -1161,7 +1178,7 @@ linkFileInput.addEventListener('change', function(){
       canvas.width = w; canvas.height = h;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, w, h);
-      pickedLinkImage = canvas.toDataURL('image/jpeg', 0.85);
+      pickedLinkImage = canvas.toDataURL('image/jpeg', 0.75);
       showLinkPreview(pickedLinkImage);
     };
     img.src = ev.target.result;
@@ -1173,6 +1190,7 @@ document.getElementById('linkSave').addEventListener('click', function(){
   const url = linkUrlInput.value.trim();
   const title = linkTitleInput.value.trim();
   const category = linkCategoryInput.value.trim();
+  const before = JSON.stringify(bannerLinks);
   if(editingLinkId){
     const item = bannerLinks.find(function(a){ return a.id === editingLinkId; });
     item.url = url;
@@ -1189,7 +1207,10 @@ document.getElementById('linkSave').addEventListener('click', function(){
       image: pickedLinkImage
     });
   }
-  saveBannerLinks();
+  if(!saveBannerLinks()){
+    bannerLinks = JSON.parse(before);
+    return;
+  }
   renderCategoryTabs();
   renderBannerLinks();
   closeLinkSheet();
@@ -1533,6 +1554,113 @@ resetBgBtn.addEventListener('click', function(){
 
 /* ---- feed ---- */
 const feedList = document.getElementById('feedList');
+const favoritesList = document.getElementById('favoritesList');
+const FAVORITES_KEY = 'launcherFavorites';
+
+function loadFavorites(){
+  const raw = localStorage.getItem(FAVORITES_KEY);
+  if(!raw) return [];
+  try{
+    const arr = JSON.parse(raw);
+    if(Array.isArray(arr)) return arr;
+  }catch(e){}
+  return [];
+}
+function saveFavorites(favs){
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favs));
+}
+function isFavorited(link){
+  return loadFavorites().some(function(f){ return f.link === link; });
+}
+function toggleFavorite(item){
+  let favs = loadFavorites();
+  if(favs.some(function(f){ return f.link === item.link; })){
+    favs = favs.filter(function(f){ return f.link !== item.link; });
+  }else{
+    favs.unshift({
+      link: item.link,
+      title: item.title || '',
+      pubDate: item.pubDate || '',
+      source: (item.source && item.source.name) || item.author || ''
+    });
+  }
+  saveFavorites(favs);
+  renderFavorites();
+}
+
+function renderFavorites(){
+  const favs = loadFavorites();
+  favoritesList.innerHTML = '';
+  if(!favs.length){
+    const empty = document.createElement('div');
+    empty.className = 'feed-empty';
+    empty.textContent = 'お気に入りはまだありません';
+    favoritesList.appendChild(empty);
+    return;
+  }
+  favs.forEach(function(item){
+    const card = document.createElement('div');
+    card.className = 'feed-card';
+
+    const link = document.createElement('a');
+    link.className = 'feed-link';
+    link.href = item.link;
+    link.target = '_blank';
+    link.rel = 'noopener';
+
+    const icon = document.createElement('div');
+    icon.className = 'feed-icon';
+    icon.textContent = item.source ? item.source.trim().charAt(0) : '⭐';
+
+    const title = document.createElement('div');
+    title.className = 'feed-card-title';
+    title.textContent = item.title || '';
+
+    link.appendChild(icon);
+    link.appendChild(title);
+
+    const metaRow = document.createElement('div');
+    metaRow.className = 'feed-meta-row';
+
+    const meta = document.createElement('div');
+    meta.className = 'feed-meta';
+    const date = formatRelative(item.pubDate);
+    meta.textContent = [item.source, date].filter(Boolean).join(' ・ ');
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'feed-share';
+    removeBtn.title = '削除';
+    removeBtn.textContent = '🗑️';
+    removeBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      toggleFavorite(item);
+    });
+
+    const shareBtn = document.createElement('button');
+    shareBtn.className = 'feed-share';
+    shareBtn.title = '共有';
+    shareBtn.textContent = '🔗';
+    shareBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      if(navigator.share){
+        navigator.share({title: item.title || '', url: item.link}).catch(function(){});
+      }else{
+        window.open(item.link, '_blank');
+      }
+    });
+
+    metaRow.appendChild(meta);
+    metaRow.appendChild(removeBtn);
+    metaRow.appendChild(shareBtn);
+
+    card.appendChild(link);
+    card.appendChild(metaRow);
+    favoritesList.appendChild(card);
+  });
+}
+renderFavorites();
 
 function formatRelative(pubDate){
   const d = new Date(pubDate);
@@ -1553,7 +1681,7 @@ function renderFeed(items){
     feedList.appendChild(empty);
     return;
   }
-  items.slice(0, 14).forEach(function(item){
+  items.slice(0, 40).forEach(function(item){
     const card = document.createElement('div');
     card.className = 'feed-card';
 
@@ -1598,7 +1726,19 @@ function renderFeed(items){
       }
     });
 
+    const favBtn = document.createElement('button');
+    favBtn.className = 'feed-share';
+    favBtn.title = 'お気に入り';
+    favBtn.textContent = isFavorited(item.link) ? '⭐' : '☆';
+    favBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      toggleFavorite(item);
+      favBtn.textContent = isFavorited(item.link) ? '⭐' : '☆';
+    });
+
     metaRow.appendChild(meta);
+    metaRow.appendChild(favBtn);
     metaRow.appendChild(shareBtn);
 
     card.appendChild(link);
@@ -1624,7 +1764,7 @@ function loadFeed(){
   const feeds = getSavedFeeds();
   feedList.innerHTML = '<div class="feed-empty">読み込み中...</div>';
   const requests = feeds.map(function(url){
-    const api = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent(url);
+    const api = 'https://api.rss2json.com/v1/api.json?count=50&rss_url=' + encodeURIComponent(url);
     return fetch(api).then(function(r){ return r.json(); }).then(function(d){
       return d.items || [];
     }).catch(function(){ return []; });
@@ -1691,6 +1831,7 @@ document.getElementById('settingsBtn').addEventListener('click', function(){
   });
   feedUrlInput.value = customUrl;
   renderCategoryOrderList();
+  updateStorageUsage();
   settingsOverlay.classList.add('show');
 });
 document.getElementById('settingsCloseBtn').addEventListener('click', function(){
@@ -1725,12 +1866,17 @@ document.getElementById('resetBannerBtn').addEventListener('click', function(){
 });
 
 document.getElementById('exportBtn').addEventListener('click', function(){
-  const data = JSON.stringify(apps, null, 2);
-  const blob = new Blob([data], {type:'application/json'});
+  const data = {};
+  for(let i = 0; i < localStorage.length; i++){
+    const key = localStorage.key(i);
+    data[key] = localStorage.getItem(key);
+  }
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'launcher-settings.json';
+  a.download = 'launcher-backup.json';
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -1744,19 +1890,70 @@ document.getElementById('importFile').addEventListener('change', function(){
   const reader = new FileReader();
   reader.onload = function(ev){
     try{
-      const arr = JSON.parse(ev.target.result);
-      if(!Array.isArray(arr)) throw new Error('invalid');
-      apps = arr;
-      saveApps(apps);
+      const data = JSON.parse(ev.target.result);
+
+      // legacy format: a plain array was the old "apps" export
+      if(Array.isArray(data)){
+        apps = data;
+        saveApps(apps);
+        renderGrid();
+        settingsOverlay.classList.remove('show');
+        alert('設定を読み込みました');
+        return;
+      }
+
+      if(typeof data !== 'object' || data === null) throw new Error('invalid');
+
+      let failedKeys = [];
+      Object.keys(data).forEach(function(key){
+        try{
+          localStorage.setItem(key, data[key]);
+        }catch(e){
+          failedKeys.push(key);
+        }
+      });
+
+      // reload everything from storage
+      apps = loadApps();
+      bannerLinks = loadBannerLinks();
       renderGrid();
+      renderCategoryTabs();
+      renderBannerLinks();
+      renderFavorites();
+      applyBanner();
+      applyBackground();
+      applyTheme();
+      loadFeed();
+
       settingsOverlay.classList.remove('show');
-      alert('設定を読み込みました');
+      if(failedKeys.length){
+        alert('一部のデータは容量不足のため復元できませんでした: ' + failedKeys.join(', '));
+      }else{
+        alert('バックアップから復元しました');
+      }
     }catch(err){
-      alert('読み込みに失敗しました。正しいファイルか確認してね');
+      alert('読み込みに失敗しました。正しいバックアップファイルか確認してね');
     }
   };
   reader.readAsText(file);
 });
+
+function getStorageUsage(){
+  let total = 0;
+  for(let i = 0; i < localStorage.length; i++){
+    const key = localStorage.key(i);
+    const val = localStorage.getItem(key) || '';
+    total += key.length + val.length;
+  }
+  return total;
+}
+
+function updateStorageUsage(){
+  const bytes = getStorageUsage();
+  const kb = (bytes / 1024).toFixed(0);
+  const el = document.getElementById('storageUsage');
+  if(el) el.textContent = '使用容量: 約 ' + kb + ' KB(目安上限 5,000〜10,000 KB)';
+}
 
 /* service worker */
 if('serviceWorker' in navigator){
