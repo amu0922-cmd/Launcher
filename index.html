@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#ec4464">
 <title>ホームランチャー</title>
 <link rel="manifest" href="manifest.json">
@@ -37,20 +37,24 @@
     overflow:hidden;
   }
   .pager{
-    display:flex;
+    position:relative;
     width:100%;height:100%;
-    overflow-x:auto;
-    overflow-y:hidden;
-    scroll-snap-type:x mandatory;
-    -webkit-overflow-scrolling:touch;
+    overflow:hidden;
+  }
+  .pager-inner{
+    display:flex;
+    width:300%;
+    height:100%;
+    transition:transform .35s cubic-bezier(.25,.46,.45,.94);
+    will-change:transform;
   }
   .page{
-    flex:0 0 100%;
-    width:100%;height:100%;
-    scroll-snap-align:start;
+    flex:0 0 calc(100% / 3);
+    width:calc(100% / 3);
+    height:100%;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 28px) 14px;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 90px) 14px;
   }
   .wrap{max-width:480px;margin:0 auto;}
 
@@ -115,32 +119,24 @@
   }
 
   /* banner */
-  .banner{
-    position:relative;
-    width:100%;
-    height:160px;
-    border-radius:18px;
-    overflow:hidden;
-    margin-top:10px;
-    background:linear-gradient(135deg,#1a2a4a,#2d1a4a);
-    box-shadow:0 4px 14px rgba(0,0,0,.2);
+  /* toolbar row */
+  .home-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    gap:4px;
+    padding:10px 2px 0;
   }
-  .banner img{
-    position:absolute;inset:0;
-    width:100%;height:100%;
-    object-fit:cover;
+  .toolbar-btn{
+    width:36px;height:36px;border-radius:50%;
+    border:none;
+    background:transparent;
+    color:var(--sub);
+    font-size:18px;
+    display:flex;align-items:center;justify-content:center;
+    opacity:.7;
   }
-  /* single compact button group top-right */
-  .banner-btn-group{
-    position:absolute;top:8px;right:8px;z-index:2;
-    display:flex;gap:6px;
-  }
-  .banner-icon-btn{
-    width:30px;height:30px;border-radius:50%;
-    border:none;background:rgba(0,0,0,.4);color:#fff;
-    font-size:13px;display:flex;align-items:center;justify-content:center;
-    backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
-  }
+  .toolbar-btn:active{opacity:1;background:var(--card2);}
 
   /* feed */
   .feed-section{margin-top:18px;}
@@ -223,6 +219,7 @@
     width:calc(100% - 28px);
     max-width:452px;
     z-index:40;
+    transition:bottom .15s;
   }
   .suggest-list{
     position:absolute;
@@ -600,6 +597,7 @@
 </head>
 <body>
 <div class="pager" id="pager">
+<div class="pager-inner" id="pagerInner">
 
   <div class="page" id="pageFavorites">
     <div class="wrap">
@@ -619,16 +617,11 @@
         <button class="ws-reload" id="wReload" title="更新">↻</button>
       </div>
 
-      <!-- banner image -->
-      <div class="banner" id="banner">
-        <img id="bannerImg" style="display:none;" alt="">
-        <div class="banner-btn-group">
-          <button class="banner-icon-btn" id="themeBtn" title="テーマ切替">🌙</button>
-          <button class="banner-icon-btn" id="bannerEditBtn" title="画像を変更">📷</button>
-          <button class="banner-icon-btn" id="refreshBtn" title="更新">🔄</button>
-          <button class="banner-icon-btn" id="settingsBtn" title="設定">⚙️</button>
-        </div>
-        <input type="file" id="bannerFile" accept="image/*" style="display:none;">
+      <!-- toolbar -->
+      <div class="home-toolbar">
+        <button class="toolbar-btn" id="themeBtn" title="テーマ切替">🌙</button>
+        <button class="toolbar-btn" id="refreshBtn" title="更新">🔄</button>
+        <button class="toolbar-btn" id="settingsBtn" title="設定">⚙️</button>
       </div>
 
       <div class="divider"></div>
@@ -651,7 +644,8 @@
     </div>
   </div>
 
-</div>
+</div><!-- end pager-inner -->
+</div><!-- end pager -->
 
 <div class="search-bar-fixed" id="searchBarFixed">
   <div class="suggest-list" id="suggestList"></div>
@@ -733,9 +727,6 @@
       <button class="btn-cancel" id="exportBtn">📤 書き出し</button>
       <label class="btn-save" for="importFile" style="text-align:center;display:flex;align-items:center;justify-content:center;">📥 読み込み</label>
       <input type="file" id="importFile" accept="application/json" style="display:none;">
-    </div>
-    <div class="sheet-actions">
-      <button class="btn-cancel" id="resetBannerBtn">🖼️ ヘッダー画像をリセット</button>
     </div>
     <div class="sheet-actions">
       <label class="btn-cancel" for="bgFile" style="text-align:center;display:flex;align-items:center;justify-content:center;">🌄 背景画像を設定</label>
@@ -1398,20 +1389,62 @@ themeBtn.addEventListener('click', function(){
 
 /* ---- pager / page dots ---- */
 const pager = document.getElementById('pager');
+const pagerInner = document.getElementById('pagerInner');
 const pageDots = document.querySelectorAll('.page-dots .dot');
 const searchBarFixed = document.getElementById('searchBarFixed');
+const PAGE_COUNT = 3;
+let currentPage = 1; /* start on home */
 
-/* start on home page (index 1) */
-pager.scrollLeft = pager.clientWidth;
-
-pager.addEventListener('scroll', function(){
-  const idx = Math.round(pager.scrollLeft / pager.clientWidth);
-  pageDots.forEach(function(d, i){
-    d.classList.toggle('active', i === idx);
-  });
-  /* show search bar only on home page (idx 1) */
+function goToPage(idx, animate){
+  idx = Math.max(0, Math.min(PAGE_COUNT - 1, idx));
+  currentPage = idx;
+  const pct = -(idx * 100 / PAGE_COUNT);
+  if(animate === false){
+    pagerInner.style.transition = 'none';
+    pagerInner.style.transform = 'translateX(' + pct + '%)';
+    pagerInner.offsetHeight; /* force reflow */
+    pagerInner.style.transition = '';
+  }else{
+    pagerInner.style.transform = 'translateX(' + pct + '%)';
+  }
+  pageDots.forEach(function(d, i){ d.classList.toggle('active', i === idx); });
   searchBarFixed.style.display = idx === 1 ? '' : 'none';
+}
+goToPage(1, false);
+
+/* touch swipe — needs 60px+ horizontal drag with >2:1 H/V ratio to trigger */
+let tsX = 0, tsY = 0, tDX = 0, dragging = false;
+pager.addEventListener('touchstart', function(e){
+  if(e.touches.length !== 1) return;
+  tsX = e.touches[0].clientX;
+  tsY = e.touches[0].clientY;
+  tDX = 0;
+  dragging = true;
+}, {passive:true});
+
+pager.addEventListener('touchmove', function(e){
+  if(!dragging || e.touches.length !== 1) return;
+  tDX = e.touches[0].clientX - tsX;
+  const dY = e.touches[0].clientY - tsY;
+  /* if mostly vertical don't interfere */
+  if(Math.abs(dY) > Math.abs(tDX) * 1.5){ dragging = false; return; }
+}, {passive:true});
+
+pager.addEventListener('touchend', function(){
+  if(!dragging){ return; }
+  dragging = false;
+  const THRESHOLD = 60;
+  if(tDX < -THRESHOLD) goToPage(currentPage + 1);
+  else if(tDX > THRESHOLD) goToPage(currentPage - 1);
 });
+
+/* keyboard appear/disappear: keep search bar above keyboard */
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize', function(){
+    const keyboardH = window.innerHeight - window.visualViewport.height;
+    searchBarFixed.style.bottom = 'calc(' + (keyboardH > 50 ? keyboardH + 8 : (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sai') || 0)) + 18) + 'px)';
+  });
+}
 
 /* ---- search + suggestions ---- */
 const searchInput = document.getElementById('searchInput');
@@ -1569,55 +1602,6 @@ document.getElementById('weatherBox').addEventListener('click', function(e){
 });
 
 loadWeather();
-
-/* ---- banner image ---- */
-const bannerImg = document.getElementById('bannerImg');
-const bannerEditBtn = document.getElementById('bannerEditBtn');
-const bannerFile = document.getElementById('bannerFile');
-
-function applyBanner(){
-  const data = localStorage.getItem(BANNER_KEY);
-  if(data){
-    bannerImg.src = data;
-    bannerImg.style.display = 'block';
-  }else{
-    bannerImg.style.display = 'none';
-    bannerImg.removeAttribute('src');
-  }
-}
-applyBanner();
-
-bannerEditBtn.addEventListener('click', function(){
-  bannerFile.click();
-});
-
-bannerFile.addEventListener('change', function(){
-  const file = bannerFile.files[0];
-  bannerFile.value = '';
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(ev){
-    const img = new Image();
-    img.onload = function(){
-      const targetW = 960, targetH = 360;
-      const canvas = document.createElement('canvas');
-      canvas.width = targetW; canvas.height = targetH;
-      const ctx = canvas.getContext('2d');
-      const scale = Math.max(targetW/img.width, targetH/img.height);
-      const w = img.width*scale, h = img.height*scale;
-      ctx.drawImage(img, (targetW-w)/2, (targetH-h)/2, w, h);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      try{
-        localStorage.setItem(BANNER_KEY, dataUrl);
-        applyBanner();
-      }catch(e){
-        alert('画像の保存に失敗しました(サイズが大きすぎるかも)');
-      }
-    };
-    img.src = ev.target.result;
-  };
-  reader.readAsDataURL(file);
-});
 
 /* ---- background image ---- */
 const bgFile = document.getElementById('bgFile');
@@ -2141,11 +2125,6 @@ document.getElementById('saveFeedBtn').addEventListener('click', function(){
   settingsOverlay.classList.remove('show');
 });
 
-document.getElementById('resetBannerBtn').addEventListener('click', function(){
-  localStorage.removeItem(BANNER_KEY);
-  applyBanner();
-});
-
 document.getElementById('exportBtn').addEventListener('click', function(){
   const data = {};
   for(let i = 0; i < localStorage.length; i++){
@@ -2201,7 +2180,6 @@ document.getElementById('importFile').addEventListener('change', function(){
       renderCategoryTabs();
       renderBannerLinks();
       renderFavorites();
-      applyBanner();
       applyBackground();
       applyTheme();
       loadFeed();
