@@ -50,7 +50,7 @@
     height:100%;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 220px) 14px;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 260px) 14px;
   }
   .wrap{max-width:480px;margin:0 auto;}
 
@@ -72,7 +72,7 @@
   /* weekly weather strip — fixed above search bar, transparent on background */
   .weather-fixed{
     position:fixed;
-    bottom:calc(env(safe-area-inset-bottom) + 90px);
+    bottom:calc(env(safe-area-inset-bottom) + 100px);
     left:50%;transform:translateX(-50%);
     width:calc(100% - 28px);
     max-width:452px;
@@ -80,10 +80,14 @@
     display:flex;
     align-items:center;
     gap:4px;
-    padding:6px 4px;
+    padding:8px 10px;
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
     cursor:pointer;
+    background:var(--card);
+    border-radius:14px;
+    box-shadow:0 2px 10px rgba(0,0,0,.08);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   }
   .weather-fixed::-webkit-scrollbar{display:none;}
   .ws-day{
