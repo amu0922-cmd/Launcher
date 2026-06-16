@@ -781,8 +781,8 @@
     </div>
     <label>タイトル(任意・画像の左下に表示)</label>
     <input type="text" id="linkTitle" placeholder="例: 競馬ラボ">
-    <label>カテゴリ(任意・タブで切り替え)</label>
-    <input type="text" id="linkCategory" placeholder="例: 競馬">
+    <label>カテゴリ(任意・🔒始まりで隠しカテゴリ)</label>
+    <input type="text" id="linkCategory" placeholder="例: 競馬　隠し: 🔒プライベート">
     <label>リンク先URL</label>
     <div style="display:flex;gap:8px;align-items:center;">
       <input type="url" id="linkUrl" placeholder="https://example.com/" style="flex:1;">
@@ -1119,15 +1119,30 @@ function getOrderedCategories(){
   return ordered;
 }
 
+const SECRET_KEY = 'launcherSecretMode';
+let secretMode = false;
+
+function isSecretCategory(cat){
+  return cat && cat.startsWith('🔒');
+}
+
 function renderCategoryTabs(){
   const cats = getOrderedCategories();
   categoryTabsEl.innerHTML = '';
   categoryTabsEl.style.display = 'flex';
 
-  if(cats.length){
-    if(cats.indexOf(currentCategory) === -1) currentCategory = cats[0];
-    localStorage.setItem(CATEGORY_KEY, currentCategory);
-    cats.forEach(function(cat){
+  /* filter: show secret cats only in secret mode, hide them otherwise */
+  const visible = cats.filter(function(cat){
+    return secretMode ? isSecretCategory(cat) : !isSecretCategory(cat);
+  });
+
+  if(visible.length){
+    /* if current category is not visible, reset to first visible */
+    if(visible.indexOf(currentCategory) === -1){
+      currentCategory = visible[0];
+      localStorage.setItem(CATEGORY_KEY, currentCategory);
+    }
+    visible.forEach(function(cat){
       const tab = document.createElement('button');
       tab.className = 'category-tab' + (cat === currentCategory ? ' active' : '');
       tab.textContent = cat;
@@ -1152,12 +1167,52 @@ function renderCategoryTabs(){
 
 function getFilteredLinks(){
   const cats = getOrderedCategories();
-  if(!cats.length) return bannerLinks;
+  const visible = cats.filter(function(cat){
+    return secretMode ? isSecretCategory(cat) : !isSecretCategory(cat);
+  });
+  if(!visible.length) return bannerLinks.filter(function(item){
+    const cat = (item.category && item.category.trim()) || '未分類';
+    return secretMode ? isSecretCategory(cat) : !isSecretCategory(cat);
+  });
   return bannerLinks.filter(function(item){
     const cat = (item.category && item.category.trim()) || '未分類';
     return cat === currentCategory;
   });
 }
+
+/* ---- secret swipe gesture on category tabs ---- */
+(function(){
+  let swipeStartX = 0, swipeStartY = 0, swipeStartTime = 0;
+  const SWIPE_THRESHOLD = 60;  /* px right */
+  const SWIPE_TIME = 350;      /* ms max */
+
+  categoryTabsEl.addEventListener('touchstart', function(e){
+    swipeStartX = e.touches[0].clientX;
+    swipeStartY = e.touches[0].clientY;
+    swipeStartTime = Date.now();
+  }, {passive:true});
+
+  categoryTabsEl.addEventListener('touchend', function(e){
+    const dx = e.changedTouches[0].clientX - swipeStartX;
+    const dy = e.changedTouches[0].clientY - swipeStartY;
+    const dt = Date.now() - swipeStartTime;
+    /* left-to-right, fast, mostly horizontal */
+    if(dx > SWIPE_THRESHOLD && Math.abs(dy) < 40 && dt < SWIPE_TIME){
+      secretMode = !secretMode;
+      /* reset currentCategory to avoid stale selection */
+      const cats = getOrderedCategories();
+      const newVisible = cats.filter(function(cat){
+        return secretMode ? isSecretCategory(cat) : !isSecretCategory(cat);
+      });
+      if(newVisible.length) currentCategory = newVisible[0];
+      renderCategoryTabs();
+      renderBannerLinks();
+      /* brief visual feedback */
+      categoryTabsEl.style.opacity = '0.5';
+      setTimeout(function(){ categoryTabsEl.style.opacity = '1'; }, 150);
+    }
+  }, {passive:true});
+})();
 
 function renderCategoryOrderList(){
   const list = document.getElementById('categoryOrderList');
