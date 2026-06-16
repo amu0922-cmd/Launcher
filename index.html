@@ -231,10 +231,13 @@
     padding:5px;
     box-shadow:0 2px 8px rgba(0,0,0,.07);
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
   }
+  .section-tabs::-webkit-scrollbar{display:none;}
   .section-tab{
-    flex:1;
-    padding:10px 6px;
+    flex:0 0 auto;
+    padding:10px 12px;
     border-radius:10px;
     border:none;
     background:transparent;
@@ -809,9 +812,9 @@
   .browser-action-btn.starred{ color:#f5a623; }
   .browser-menu-panel{
     position:absolute;top:calc(env(safe-area-inset-top) + 90px);right:8px;
-    background:var(--card);
+    background:var(--card-solid);
     border-radius:14px;
-    box-shadow:0 4px 20px rgba(0,0,0,.18);
+    box-shadow:0 4px 20px rgba(0,0,0,.25);
     overflow:hidden;
     z-index:50;
     min-width:200px;
@@ -888,6 +891,7 @@
         <input type="url" id="browserUrlInput" placeholder="URLを入力">
       </div>
       <button class="browser-go" id="browserGo">移動</button>
+      <button class="browser-action-btn" id="browserReloadBtn" title="更新">🔄</button>
       <button class="browser-action-btn" id="browserBookmarkBtn" title="お気に入り">☆</button>
       <button class="browser-action-btn" id="browserMenuBtn" title="メニュー">⋮</button>
     </div>
@@ -963,6 +967,11 @@
     <div style="display:flex;gap:8px;align-items:center;">
       <input type="url" id="linkUrl" placeholder="https://example.com/" style="flex:1;">
       <button class="btn-save" id="fetchThumbBtn" style="flex-shrink:0;padding:10px 10px;border-radius:10px;font-size:12px;">🔍取得</button>
+    </div>
+    <label>ブラウザ</label>
+    <div class="layout-toggle">
+      <button class="layout-btn active" id="browserInternal" data-browser="internal">🌐 内蔵ブラウザ</button>
+      <button class="layout-btn" id="browserExternal" data-browser="external">🔗 外部ブラウザ</button>
     </div>
     <label>画像 <span id="thumbStatus" style="color:var(--sub);font-size:11px;"></span></label>
     <div class="link-preview" id="linkPreview">画像未設定</div>
@@ -1551,8 +1560,15 @@ function makeLinkCard(item){
       return;
     }
     if(!dragMode && !touchMoved){
-      if(item.url){ launchApp(item.url); }
-      else{ openLinkEdit(item.id); }
+      if(item.url){
+        if(item.browser === 'external'){
+          window.open(item.url, '_blank');
+        }else{
+          launchApp(item.url);
+        }
+      }else{
+        openLinkEdit(item.id);
+      }
     }
   });
 
@@ -1605,6 +1621,18 @@ function setLayoutToggle(layout){
 layoutBannerBtn.addEventListener('click', function(){ setLayoutToggle('banner'); });
 layoutTallBtn.addEventListener('click',   function(){ setLayoutToggle('tall'); });
 layoutSquareBtn.addEventListener('click', function(){ setLayoutToggle('square'); });
+
+/* browser toggle */
+let pickedBrowser = 'internal';
+const browserInternalBtn = document.getElementById('browserInternal');
+const browserExternalBtn = document.getElementById('browserExternal');
+function setBrowserToggle(b){
+  pickedBrowser = b;
+  browserInternalBtn.classList.toggle('active', b === 'internal');
+  browserExternalBtn.classList.toggle('active', b === 'external');
+}
+browserInternalBtn.addEventListener('click', function(){ setBrowserToggle('internal'); });
+browserExternalBtn.addEventListener('click', function(){ setBrowserToggle('external'); });
 const linkPreview = document.getElementById('linkPreview');
 const linkDeleteRow = document.getElementById('linkDeleteRow');
 const thumbStatus = document.getElementById('thumbStatus');
@@ -1676,6 +1704,7 @@ function openLinkAdd(){
   linkUrlInput.value = '';
   linkDeleteRow.style.display = 'none';
   setLayoutToggle('banner');
+  setBrowserToggle('internal');
   showLinkPreview(null);
   linkOverlay.classList.add('show');
 }
@@ -1691,6 +1720,7 @@ function openLinkEdit(id){
   linkUrlInput.value = item.url || '';
   linkDeleteRow.style.display = 'flex';
   setLayoutToggle(item.layout || 'banner');
+  setBrowserToggle(item.browser || 'internal');
   showLinkPreview(item.image);
   linkOverlay.classList.add('show');
 }
@@ -1729,6 +1759,7 @@ document.getElementById('linkSave').addEventListener('click', function(){
   const title = linkTitleInput.value.trim();
   const category = linkCategoryInput.value.trim();
   const layout = pickedLayout || 'banner';
+  const browser = pickedBrowser || 'internal';
   const before = JSON.stringify(bannerLinks);
   if(editingLinkId){
     const item = bannerLinks.find(function(a){ return a.id === editingLinkId; });
@@ -1736,6 +1767,7 @@ document.getElementById('linkSave').addEventListener('click', function(){
     item.title = title;
     item.category = category;
     item.layout = layout;
+    item.browser = browser;
     item.image = pickedLinkImage;
   }else{
     if(!pickedLinkImage && !url) return;
@@ -1745,6 +1777,7 @@ document.getElementById('linkSave').addEventListener('click', function(){
       title: title,
       category: category,
       layout: layout,
+      browser: browser,
       image: pickedLinkImage
     });
   }
@@ -1983,6 +2016,15 @@ browserBack.addEventListener('click', function(){
   goToSection('home');
 });
 browserNewTab.addEventListener('click', function(){ openNewTab(''); });
+
+/* reload button */
+document.getElementById('browserReloadBtn').addEventListener('click', function(){
+  const tab = btabs.find(function(t){ return t.id === activeTabId; });
+  if(!tab || !tab.url) return;
+  if(tab.iframe){ tab.iframe.remove(); tab.iframe = null; }
+  browserFrameWrap.querySelectorAll('.browser-blocked').forEach(function(el){ el.remove(); });
+  showFrame(tab);
+});
 
 /* bookmark button */
 const browserBookmarkBtn = document.getElementById('browserBookmarkBtn');
