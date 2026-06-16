@@ -57,7 +57,7 @@
   /* page dots */
   .page-dots{
     position:fixed;
-    bottom:calc(env(safe-area-inset-bottom) + 8px);
+    bottom:calc(env(safe-area-inset-bottom) + 82px);
     left:0;right:0;
     display:flex;justify-content:center;gap:6px;
     pointer-events:none;
@@ -229,32 +229,54 @@
   }
 
   /* search */
-  .search-wrap{position:relative;margin-bottom:14px;}
+  /* fixed bottom search bar */
+  .search-bar-fixed{
+    position:fixed;
+    bottom:calc(env(safe-area-inset-bottom) + 18px);
+    left:50%;transform:translateX(-50%);
+    width:calc(100% - 28px);
+    max-width:452px;
+    z-index:40;
+  }
   .suggest-list{
-    position:absolute;left:0;right:0;top:calc(100% + 6px);
+    position:absolute;
+    bottom:calc(100% + 8px);
+    left:0;right:0;
     background:var(--card);
-    border-radius:14px;
+    border-radius:16px;
     overflow:hidden;
-    box-shadow:0 6px 16px rgba(0,0,0,.12);
-    z-index:30;
+    box-shadow:0 -4px 20px rgba(0,0,0,.18);
     display:none;
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    max-height:280px;
+    overflow-y:auto;
   }
   .suggest-list .item{
-    padding:11px 18px;
+    display:flex;align-items:center;gap:12px;
+    padding:12px 18px;
     font-size:14px;
     border-bottom:1px solid var(--border);
+    color:var(--text);
   }
   .suggest-list .item:last-child{border-bottom:none;}
   .suggest-list .item:active{background:var(--card2);}
+  .suggest-list .item::before{content:'🔍';font-size:12px;opacity:.45;}
   .search-box{
     display:flex;
     align-items:center;
     background:var(--card);
     border-radius:999px;
-    padding:6px 6px 6px 18px;
-    box-shadow:0 2px 8px rgba(0,0,0,.06);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    padding:6px 6px 6px 16px;
+    box-shadow:0 4px 20px rgba(0,0,0,.18);
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    border:1px solid var(--border);
+  }
+  .search-g-logo{
+    font-size:17px;font-weight:900;
+    margin-right:4px;flex-shrink:0;
+    background:linear-gradient(135deg,#4285f4,#34a853,#fbbc05,#ea4335);
+    -webkit-background-clip:text;background-clip:text;
+    color:transparent;
   }
   .search-box input{
     flex:1;
@@ -275,6 +297,11 @@
     font-size:18px;
     display:flex;align-items:center;justify-content:center;
     flex-shrink:0;
+  }
+
+  /* extra bottom padding on home page so links aren't hidden behind search bar */
+  #pageHome .wrap{
+    padding-bottom:90px;
   }
 
   /* app grid */
@@ -608,14 +635,6 @@
 
       <div class="divider"></div>
 
-      <div class="search-wrap">
-        <form class="search-box" id="searchForm" autocomplete="off">
-          <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off">
-          <button type="submit">🔍</button>
-        </form>
-        <div class="suggest-list" id="suggestList"></div>
-      </div>
-
       <div class="grid" id="appGrid" style="display:none;"></div>
 
       <div class="category-tabs" id="categoryTabs"></div>
@@ -643,6 +662,15 @@
     </div>
   </div>
 
+</div>
+
+<div class="search-bar-fixed" id="searchBarFixed">
+  <div class="suggest-list" id="suggestList"></div>
+  <form class="search-box" id="searchForm" autocomplete="off">
+    <span class="search-g-logo">G</span>
+    <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off">
+    <button type="submit">🔍</button>
+  </form>
 </div>
 
 <div class="page-dots">
@@ -1383,12 +1411,15 @@ themeBtn.addEventListener('click', function(){
 /* ---- pager / page dots ---- */
 const pager = document.getElementById('pager');
 const pageDots = document.querySelectorAll('.page-dots .dot');
+const searchBarFixed = document.getElementById('searchBarFixed');
 
 pager.addEventListener('scroll', function(){
   const idx = Math.round(pager.scrollLeft / pager.clientWidth);
   pageDots.forEach(function(d, i){
     d.classList.toggle('active', i === idx);
   });
+  /* show search bar only on home page */
+  searchBarFixed.style.display = idx === 0 ? '' : 'none';
 });
 
 /* ---- search + suggestions ---- */
