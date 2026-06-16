@@ -498,6 +498,9 @@
   .banner-link-card.square{
     aspect-ratio:1/1;
   }
+  .banner-link-card.tall{
+    aspect-ratio:3/2;
+  }
   .banner-link-card.square .banner-link-title{
     font-size:11px;
     white-space:normal;
@@ -782,7 +785,8 @@
     <h2 id="linkSheetTitle">リンクを追加</h2>
     <label>表示形式</label>
     <div class="layout-toggle">
-      <button class="layout-btn active" id="layoutBanner" data-layout="banner">📰 横長バナー</button>
+      <button class="layout-btn active" id="layoutBanner" data-layout="banner">📰 横長</button>
+      <button class="layout-btn" id="layoutTall" data-layout="tall">📋 縦長</button>
       <button class="layout-btn" id="layoutSquare" data-layout="square">🟦 正方形</button>
     </div>
     <label>タイトル(任意・画像の左下に表示)</label>
@@ -1285,7 +1289,8 @@ function exitDragMode(){
 
 function makeLinkCard(item){
   const card = document.createElement('div');
-  card.className = 'banner-link-card' + (item.layout === 'square' ? ' square' : '');
+  card.className = 'banner-link-card' +
+    (item.layout === 'square' ? ' square' : item.layout === 'tall' ? ' tall' : '');
   card.dataset.id = item.id;
 
   if(item.image){
@@ -1412,6 +1417,10 @@ function renderBannerLinks(){
       linksContainer.appendChild(makeLinkCard(item));
     }
   });
+      squareRow = null;
+      linksContainer.appendChild(makeLinkCard(item));
+    }
+  });
 }
 
 const linkOverlay = document.getElementById('linkOverlay');
@@ -1423,13 +1432,16 @@ const linkFileInput = document.getElementById('linkFile');
 
 /* layout toggle buttons */
 const layoutBannerBtn = document.getElementById('layoutBanner');
+const layoutTallBtn   = document.getElementById('layoutTall');
 const layoutSquareBtn = document.getElementById('layoutSquare');
 function setLayoutToggle(layout){
   pickedLayout = layout;
   layoutBannerBtn.classList.toggle('active', layout === 'banner');
+  layoutTallBtn.classList.toggle('active',   layout === 'tall');
   layoutSquareBtn.classList.toggle('active', layout === 'square');
 }
 layoutBannerBtn.addEventListener('click', function(){ setLayoutToggle('banner'); });
+layoutTallBtn.addEventListener('click',   function(){ setLayoutToggle('tall'); });
 layoutSquareBtn.addEventListener('click', function(){ setLayoutToggle('square'); });
 const linkPreview = document.getElementById('linkPreview');
 const linkDeleteRow = document.getElementById('linkDeleteRow');
