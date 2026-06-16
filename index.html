@@ -827,6 +827,59 @@
   }
   .bmenu-item:last-child{border-bottom:none;}
   .bmenu-item:active{background:var(--card2);}
+
+  /* bookmark panel */
+  .bm-panel{
+    position:absolute;top:0;right:0;bottom:0;
+    width:100%;
+    background:var(--card-solid);
+    z-index:51;
+    display:flex;flex-direction:column;
+  }
+  .bm-panel-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:14px 16px;
+    padding-top:calc(env(safe-area-inset-top) + 14px);
+    border-bottom:1px solid var(--border);
+    font-size:16px;font-weight:800;color:var(--text);
+    flex-shrink:0;
+  }
+  .bm-close{
+    background:none;border:none;color:var(--sub);font-size:20px;padding:4px 8px;
+  }
+  .bm-tabs{
+    display:flex;gap:0;
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .bm-tab{
+    flex:1;padding:12px 6px;
+    border:none;background:transparent;
+    color:var(--sub);font-size:13px;font-weight:700;
+    border-bottom:2px solid transparent;
+  }
+  .bm-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .bm-list{
+    flex:1;overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .bm-row{
+    display:flex;align-items:center;
+    padding:12px 16px;
+    border-bottom:1px solid var(--border);
+    gap:12px;
+  }
+  .bm-row-icon{
+    width:32px;height:32px;border-radius:8px;
+    background:var(--card2);
+    display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:800;color:var(--accent);
+    flex-shrink:0;
+  }
+  .bm-row-body{flex:1;min-width:0;}
+  .bm-row-title{font-size:13px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bm-row-url{font-size:11px;color:var(--sub);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;}
+  .bm-row-del{background:none;border:none;color:var(--sub);font-size:16px;padding:4px 6px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -842,7 +895,6 @@
       <div class="section-tabs" id="sectionTabs">
         <button class="section-tab active" data-sec="home">🏠 ホーム</button>
         <button class="section-tab" data-sec="feed">📰 フィード</button>
-        <button class="section-tab" data-sec="fav">⭐ お気に入り</button>
         <button class="section-tab" data-sec="browser">🌐 ブラウザ</button>
         <div class="section-tab-actions">
           <button class="stab-btn" id="themeBtn" title="テーマ">🌙</button>
@@ -902,9 +954,30 @@
 
     <!-- browser action menu -->
     <div class="browser-menu-panel" id="browserMenuPanel" style="display:none;">
+      <button class="bmenu-item" id="bmenuBookmarks">⭐ ブックマーク・あとで読む</button>
       <button class="bmenu-item" id="bmenuPdf">📄 PDFとして保存</button>
       <button class="bmenu-item" id="bmenuCloseAll">✕ タブを全て閉じる</button>
       <button class="bmenu-item" id="bmenuExternal">🌐 外部ブラウザで開く</button>
+    </div>
+
+    <!-- bookmark slide panel -->
+    <div class="bm-panel" id="bmPanel" style="display:none;">
+      <div class="bm-panel-head">
+        <span>ブックマーク</span>
+        <button class="bm-close" id="bmClose">✕</button>
+      </div>
+      <div class="bm-tabs">
+        <button class="bm-tab active" data-bm="fav">⭐ お気に入り</button>
+        <button class="bm-tab" data-bm="later">🕐 あとで読む</button>
+      </div>
+      <div class="bm-list" id="bmFavList"></div>
+      <div class="bm-list" id="bmLaterList" style="display:none;">
+        <div class="read-later-add" style="padding:10px 10px 0;">
+          <input type="url" id="bmLaterInput" placeholder="URLを追加">
+          <button id="bmLaterAddBtn">追加</button>
+        </div>
+        <div id="bmLaterItems"></div>
+      </div>
     </div>
   </div>
 
@@ -1824,8 +1897,7 @@ themeBtn.addEventListener('click', function(){
 const searchBarFixed = document.getElementById('searchBarFixed');
 const sections = {
   home: document.getElementById('secHome'),
-  feed: document.getElementById('secFeed'),
-  fav:  document.getElementById('secFav')
+  feed: document.getElementById('secFeed')
 };
 let currentSection = 'home';
 
@@ -1842,9 +1914,7 @@ function goToSection(key){
   });
   weatherBoxEl.style.display = key === 'home' ? '' : 'none';
   searchBarFixed.style.display = key === 'home' ? '' : 'none';
-  /* browser is full-screen overlay */
   browserPanel.classList.toggle('visible', key === 'browser');
-  if(key === 'fav'){ renderFavorites(); renderReadLater(); }
   if(key === 'feed' && !document.getElementById('feedList').children.length) loadFeed();
 }
 
@@ -2039,7 +2109,10 @@ function updateBookmarkBtn(){
 }
 browserBookmarkBtn.addEventListener('click', function(){
   const tab = btabs.find(function(t){ return t.id === activeTabId; });
-  if(!tab || !tab.url) return;
+  if(!tab || !tab.url){
+    openBmPanel('fav');
+    return;
+  }
   toggleFavorite({ link: tab.url, title: tab.title || tab.url, pubDate: new Date().toISOString(), source: '' });
   updateBookmarkBtn();
 });
@@ -2053,6 +2126,118 @@ browserMenuBtn.addEventListener('click', function(e){
 });
 document.addEventListener('click', function(){
   browserMenuPanel.style.display = 'none';
+});
+
+document.getElementById('bmenuBookmarks').addEventListener('click', function(){
+  browserMenuPanel.style.display = 'none';
+  openBmPanel('fav');
+});
+
+/* ---- bookmark panel ---- */
+const bmPanel = document.getElementById('bmPanel');
+const bmFavList = document.getElementById('bmFavList');
+const bmLaterItems = document.getElementById('bmLaterItems');
+const bmLaterInput = document.getElementById('bmLaterInput');
+let currentBmTab = 'fav';
+
+function openBmPanel(tab){
+  bmPanel.style.display = 'flex';
+  switchBmTab(tab || currentBmTab);
+}
+
+document.getElementById('bmClose').addEventListener('click', function(){
+  bmPanel.style.display = 'none';
+});
+
+document.querySelectorAll('.bm-tab').forEach(function(btn){
+  btn.addEventListener('click', function(){ switchBmTab(btn.dataset.bm); });
+});
+
+function switchBmTab(tab){
+  currentBmTab = tab;
+  document.querySelectorAll('.bm-tab').forEach(function(b){
+    b.classList.toggle('active', b.dataset.bm === tab);
+  });
+  bmFavList.style.display = tab === 'fav' ? '' : 'none';
+  document.getElementById('bmLaterList').style.display = tab === 'later' ? '' : 'none';
+  if(tab === 'fav') renderBmFavs();
+  else renderBmLater();
+}
+
+function renderBmFavs(){
+  bmFavList.innerHTML = '';
+  const favs = loadFavorites();
+  if(!favs.length){
+    bmFavList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--sub);font-size:13px;">お気に入りはまだありません</div>';
+    return;
+  }
+  favs.forEach(function(item){
+    const row = makeBmRow(item.title || item.link, item.link, function(){
+      toggleFavorite(item); renderBmFavs();
+    });
+    bmFavList.appendChild(row);
+  });
+}
+
+function renderBmLater(){
+  bmLaterItems.innerHTML = '';
+  const items = loadReadLater();
+  if(!items.length){
+    bmLaterItems.innerHTML = '<div style="padding:20px;text-align:center;color:var(--sub);font-size:13px;">あとで読むURLはまだありません</div>';
+    return;
+  }
+  items.forEach(function(item){
+    const row = makeBmRow(item.title || item.url, item.url, function(){
+      const updated = loadReadLater().filter(function(r){ return r.url !== item.url; });
+      saveReadLater(updated); renderBmLater();
+    });
+    bmLaterItems.appendChild(row);
+  });
+}
+
+function makeBmRow(title, url, onDelete){
+  const row = document.createElement('div');
+  row.className = 'bm-row';
+
+  const icon = document.createElement('div');
+  icon.className = 'bm-row-icon';
+  try{ icon.textContent = new URL(url).hostname.charAt(0).toUpperCase(); }
+  catch(e){ icon.textContent = '🔗'; }
+
+  const body = document.createElement('div');
+  body.className = 'bm-row-body';
+  body.style.cursor = 'pointer';
+  const t = document.createElement('div');
+  t.className = 'bm-row-title';
+  t.textContent = title;
+  const u = document.createElement('div');
+  u.className = 'bm-row-url';
+  u.textContent = url;
+  body.appendChild(t);
+  body.appendChild(u);
+  body.addEventListener('click', function(){
+    bmPanel.style.display = 'none';
+    browserNavigate(url);
+  });
+
+  const del = document.createElement('button');
+  del.className = 'bm-row-del';
+  del.textContent = '🗑️';
+  del.addEventListener('click', function(e){ e.stopPropagation(); onDelete(); });
+
+  row.appendChild(icon);
+  row.appendChild(body);
+  row.appendChild(del);
+  return row;
+}
+
+document.getElementById('bmLaterAddBtn').addEventListener('click', function(){
+  addReadLater(bmLaterInput.value.trim());
+  bmLaterInput.value = '';
+  renderBmLater();
+});
+bmLaterInput.addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){ addReadLater(bmLaterInput.value.trim()); bmLaterInput.value = ''; renderBmLater(); }
 });
 
 document.getElementById('bmenuPdf').addEventListener('click', function(){
