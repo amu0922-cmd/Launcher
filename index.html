@@ -42,15 +42,11 @@
     overflow:hidden;
   }
   .pager-inner{
-    display:flex;
-    width:300%;
+    width:100%;
     height:100%;
-    transition:transform .35s cubic-bezier(.25,.46,.45,.94);
-    will-change:transform;
   }
   .page{
-    flex:0 0 calc(100% / 3);
-    width:calc(100% / 3);
+    width:100%;
     height:100%;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
@@ -93,9 +89,14 @@
     display:flex;
     align-items:center;
     gap:4px;
-    padding:14px 4px 6px;
+    padding:8px 4px 6px;
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
+    background:var(--card);
+    border-radius:16px 16px 0 0;
+    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    margin-bottom:0;
+    cursor:pointer;
   }
   .weather-strip::-webkit-scrollbar{display:none;}
   .ws-day{
@@ -106,12 +107,12 @@
   }
   .ws-day .ws-name{
     font-size:11px;font-weight:700;
-    color:var(--sub);margin-bottom:3px;
+    color:var(--sub);margin-bottom:2px;
   }
-  .ws-day .ws-icon{font-size:20px;line-height:1;}
+  .ws-day .ws-icon{font-size:18px;line-height:1;}
   .ws-day .ws-temp{
     font-size:10px;color:var(--sub);
-    margin-top:3px;white-space:nowrap;
+    margin-top:2px;white-space:nowrap;
   }
   .ws-reload{
     background:none;border:none;color:var(--sub);
@@ -282,7 +283,7 @@
   /* fixed bottom search bar */
   .search-bar-fixed{
     position:fixed;
-    bottom:calc(env(safe-area-inset-bottom) + 18px);
+    bottom:calc(env(safe-area-inset-bottom) + 12px);
     left:50%;transform:translateX(-50%);
     width:calc(100% - 28px);
     max-width:452px;
@@ -316,11 +317,12 @@
     display:flex;
     align-items:center;
     background:var(--card);
-    border-radius:999px;
+    border-radius:0 0 999px 999px;
     padding:6px 6px 6px 16px;
     box-shadow:0 4px 20px rgba(0,0,0,.18);
     backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
     border:1px solid var(--border);
+    border-top:none;
   }
   .search-g-logo{
     font-size:17px;font-weight:900;
@@ -441,32 +443,46 @@
   /* category tabs */
   .category-tabs{
     display:none;
-    gap:8px;
+    gap:6px;
     overflow-x:auto;
     margin-top:14px;
-    padding-bottom:2px;
+    padding-bottom:4px;
+    align-items:flex-end;
   }
   .category-tab{
     flex:0 0 auto;
-    padding:8px 16px;
-    border-radius:999px;
-    border:1.5px solid var(--border);
-    background:var(--card);
-    color:var(--text);
-    font-size:13px;font-weight:700;
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    padding:8px 14px 6px;
+    border-radius:6px 6px 0 0;
+    border:none;
+    border-bottom:3px solid transparent;
+    color:#fff;
+    font-size:12px;font-weight:800;
+    letter-spacing:.02em;
+    opacity:.75;
+    transform:translateY(2px);
+    transition:opacity .15s, transform .15s;
   }
   .category-tab.active{
-    border-color:var(--accent);
-    color:var(--accent);
+    opacity:1;
+    transform:translateY(0px);
+    border-bottom-color:rgba(255,255,255,.4);
   }
+  /* sticky note colors cycle */
+  .category-tab:nth-child(7n+1){background:#e85d75;}
+  .category-tab:nth-child(7n+2){background:#f5a623;}
+  .category-tab:nth-child(7n+3){background:#4f8cff;}
+  .category-tab:nth-child(7n+4){background:#39b873;}
+  .category-tab:nth-child(7n+5){background:#9b6cf0;}
+  .category-tab:nth-child(7n+6){background:#30b6c9;}
+  .category-tab:nth-child(7n+0){background:#e67e3a;}
   .category-tab-add{
+    background:transparent!important;
     color:var(--sub);
-    border-color:transparent;
-    background:transparent;
-    font-size:16px;
-    padding:8px 10px;
-    opacity:.55;
+    border:none;
+    font-size:18px;
+    padding:8px 8px 6px;
+    opacity:.5;
+    transform:translateY(2px);
   }
   .category-order-list{
     display:flex;flex-direction:column;gap:6px;margin-top:6px;
@@ -751,10 +767,6 @@
 
       <!-- home section -->
       <div class="section" id="secHome">
-        <div class="weather-strip" id="weatherBox">
-          <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
-          <button class="ws-reload" id="wReload" title="更新">↻</button>
-        </div>
         <div class="grid" id="appGrid" style="display:none;"></div>
         <div class="category-tabs" id="categoryTabs"></div>
         <div class="banner-links" id="bannerLinks"></div>
@@ -780,6 +792,10 @@
 </div><!-- end pager -->
 
 <div class="search-bar-fixed" id="searchBarFixed">
+  <div class="weather-strip" id="weatherBox">
+    <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
+    <button class="ws-reload" id="wReload" title="更新">↻</button>
+  </div>
   <div class="suggest-list" id="suggestList"></div>
   <form class="search-box" id="searchForm" autocomplete="off">
     <span class="search-g-logo">G</span>
