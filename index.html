@@ -179,6 +179,38 @@
   }
   .feed-empty{font-size:12px;color:var(--sub);padding:10px 2px;}
 
+  /* favorites / read-later section */
+  .fav-section-head{
+    font-size:14px;font-weight:800;
+    color:var(--text);
+    margin-bottom:8px;
+    padding-bottom:6px;
+    border-bottom:2px solid var(--accent);
+    opacity:.85;
+  }
+  .read-later-add{
+    display:flex;gap:8px;
+    margin-top:12px;
+  }
+  .read-later-add input{
+    flex:1;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px 12px;
+    color:var(--text);
+    font-size:14px;
+  }
+  .read-later-add button{
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:10px 14px;
+    font-size:14px;font-weight:700;
+    flex-shrink:0;
+  }
+
 
   /* divider */
   .divider{
@@ -732,7 +764,14 @@
 
       <!-- favorites section -->
       <div class="section" id="secFav" style="display:none;">
+        <div class="fav-section-head">⭐ お気に入り</div>
         <div class="feed-list" id="favoritesList"></div>
+        <div class="fav-section-head" id="readLaterHead" style="margin-top:18px;">🕐 あとで読む</div>
+        <div class="feed-list" id="readLaterList"></div>
+        <div class="read-later-add">
+          <input type="url" id="readLaterInput" placeholder="URLを貼り付け">
+          <button id="readLaterBtn">追加</button>
+        </div>
       </div>
 
     </div>
@@ -1641,7 +1680,7 @@ function goToSection(key){
     btn.classList.toggle('active', btn.dataset.sec === key);
   });
   weatherBoxEl.style.display = key === 'home' ? '' : 'none';
-  if(key === 'fav') renderFavorites();
+  if(key === 'fav'){ renderFavorites(); renderReadLater(); }
   if(key === 'feed' && !document.getElementById('feedList').children.length) loadFeed();
 }
 
@@ -1972,6 +2011,113 @@ function renderFavorites(){
   });
 }
 renderFavorites();
+
+/* ---- read-later ---- */
+const READ_LATER_KEY = 'launcherReadLater';
+const readLaterList = document.getElementById('readLaterList');
+const readLaterInput = document.getElementById('readLaterInput');
+
+function loadReadLater(){
+  const raw = localStorage.getItem(READ_LATER_KEY);
+  if(!raw) return [];
+  try{ const a = JSON.parse(raw); return Array.isArray(a) ? a : []; }catch(e){ return []; }
+}
+function saveReadLater(items){
+  try{ localStorage.setItem(READ_LATER_KEY, JSON.stringify(items)); }catch(e){}
+}
+
+function renderReadLater(){
+  readLaterList.innerHTML = '';
+  const items = loadReadLater();
+  if(!items.length){
+    const empty = document.createElement('div');
+    empty.className = 'feed-empty';
+    empty.textContent = 'あとで読むURLはまだありません';
+    readLaterList.appendChild(empty);
+    return;
+  }
+  items.forEach(function(item){
+    const card = document.createElement('div');
+    card.className = 'feed-card';
+
+    const link = document.createElement('a');
+    link.className = 'feed-link';
+    link.href = item.url;
+    link.target = '_blank';
+    link.rel = 'noopener';
+
+    const icon = document.createElement('div');
+    icon.className = 'feed-icon';
+    try{ icon.textContent = new URL(item.url).hostname.charAt(0).toUpperCase(); }
+    catch(e){ icon.textContent = '🔗'; }
+
+    const title = document.createElement('div');
+    title.className = 'feed-card-title';
+    title.textContent = item.title || item.url;
+
+    link.appendChild(icon);
+    link.appendChild(title);
+
+    const metaRow = document.createElement('div');
+    metaRow.className = 'feed-meta-row';
+
+    const meta = document.createElement('div');
+    meta.className = 'feed-meta';
+    meta.textContent = formatRelative(item.savedAt);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'feed-share';
+    removeBtn.textContent = '🗑️';
+    removeBtn.title = '削除';
+    removeBtn.addEventListener('click', function(e){
+      e.preventDefault(); e.stopPropagation();
+      const updated = loadReadLater().filter(function(r){ return r.url !== item.url; });
+      saveReadLater(updated); renderReadLater();
+    });
+
+    const shareBtn = document.createElement('button');
+    shareBtn.className = 'feed-share';
+    shareBtn.textContent = '🔗';
+    shareBtn.addEventListener('click', function(e){
+      e.preventDefault(); e.stopPropagation();
+      if(navigator.share){ navigator.share({url: item.url}).catch(function(){}); }
+      else{ window.open(item.url, '_blank'); }
+    });
+
+    metaRow.appendChild(meta);
+    metaRow.appendChild(removeBtn);
+    metaRow.appendChild(shareBtn);
+    card.appendChild(link);
+    card.appendChild(metaRow);
+    readLaterList.appendChild(card);
+  });
+}
+
+async function addReadLater(url){
+  if(!url) return;
+  try{ new URL(url); }catch(e){ return; }
+  const items = loadReadLater();
+  if(items.some(function(r){ return r.url === url; })) return;
+  const entry = { url: url, title: '', savedAt: new Date().toISOString() };
+  items.unshift(entry);
+  saveReadLater(items);
+  renderReadLater();
+  readLaterInput.value = '';
+  const meta = await fetchLinkMeta(url).catch(function(){ return null; });
+  if(meta && meta.title){
+    const updated = loadReadLater();
+    const found = updated.find(function(r){ return r.url === url; });
+    if(found){ found.title = meta.title; saveReadLater(updated); renderReadLater(); }
+  }
+}
+
+document.getElementById('readLaterBtn').addEventListener('click', function(){
+  addReadLater(readLaterInput.value.trim());
+});
+readLaterInput.addEventListener('keydown', function(e){
+  if(e.key === 'Enter'){ addReadLater(readLaterInput.value.trim()); }
+});
+renderReadLater();
 
 function formatRelative(pubDate){
   const d = new Date(pubDate);
