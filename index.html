@@ -538,6 +538,28 @@
     text-overflow:ellipsis;
     white-space:nowrap;
   }
+  /* drag mode */
+  .banner-links.drag-mode .banner-link-card{
+    cursor:grab;
+    transition:transform .15s, opacity .15s, box-shadow .15s;
+  }
+  .banner-link-card.dragging{
+    opacity:.6;
+    transform:scale(.96);
+    box-shadow:0 8px 24px rgba(0,0,0,.25)!important;
+  }
+  .banner-links.drag-mode .edit-btn{
+    display:none;
+  }
+  .banner-links.drag-mode::after{
+    content:'✓ 離して確定 / 再タップで完了';
+    display:block;
+    text-align:center;
+    font-size:11px;
+    color:var(--sub);
+    padding:8px 0 2px;
+  }
+
   .banner-link-card .edit-btn{
     position:absolute;
     top:6px;right:6px;
@@ -1197,9 +1219,26 @@ function moveCategory(index, dir){
   renderBannerLinks();
 }
 
+/* drag state */
+let dragSrcId = null;
+let dragMode = false;
+let longPressTimer = null;
+const LONG_PRESS_MS = 500;
+
+function enterDragMode(){
+  dragMode = true;
+  linksContainer.classList.add('drag-mode');
+}
+function exitDragMode(){
+  dragMode = false;
+  linksContainer.classList.remove('drag-mode');
+  dragSrcId = null;
+}
+
 function makeLinkCard(item){
   const card = document.createElement('div');
   card.className = 'banner-link-card' + (item.layout === 'square' ? ' square' : '');
+  card.dataset.id = item.id;
 
   if(item.image){
     const img = document.createElement('img');
@@ -1229,14 +1268,64 @@ function makeLinkCard(item){
   editBtn.addEventListener('click', function(e){
     e.stopPropagation();
     e.preventDefault();
+    if(dragMode){ exitDragMode(); return; }
     openLinkEdit(item.id);
   });
   card.appendChild(editBtn);
 
-  card.addEventListener('click', function(){
-    if(item.url){ launchApp(item.url); }
-    else{ openLinkEdit(item.id); }
+  /* tap = open link / long press = drag */
+  card.addEventListener('touchstart', function(e){
+    if(dragMode){
+      dragSrcId = item.id;
+      card.classList.add('dragging');
+      return;
+    }
+    longPressTimer = setTimeout(function(){
+      enterDragMode();
+      dragSrcId = item.id;
+      card.classList.add('dragging');
+    }, LONG_PRESS_MS);
+  }, {passive:true});
+
+  card.addEventListener('touchmove', function(e){
+    clearTimeout(longPressTimer);
+    if(!dragMode || dragSrcId !== item.id) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const el = document.elementFromPoint(touch.clientX, touch.clientY);
+    const target = el && el.closest('.banner-link-card');
+    if(target && target.dataset.id && target.dataset.id !== dragSrcId){
+      const srcIdx = bannerLinks.findIndex(function(a){ return a.id === dragSrcId; });
+      const tgtIdx = bannerLinks.findIndex(function(a){ return a.id === target.dataset.id; });
+      if(srcIdx !== -1 && tgtIdx !== -1){
+        const tmp = bannerLinks[srcIdx];
+        bannerLinks[srcIdx] = bannerLinks[tgtIdx];
+        bannerLinks[tgtIdx] = tmp;
+        saveBannerLinks();
+        renderBannerLinks();
+      }
+    }
+  }, {passive:false});
+
+  card.addEventListener('touchend', function(){
+    clearTimeout(longPressTimer);
+    if(dragMode && dragSrcId === item.id){
+      card.classList.remove('dragging');
+      /* exit drag mode after short delay so user can see result */
+      setTimeout(exitDragMode, 400);
+      return;
+    }
+    if(!dragMode){
+      if(item.url){ launchApp(item.url); }
+      else{ openLinkEdit(item.id); }
+    }
   });
+
+  card.addEventListener('touchcancel', function(){
+    clearTimeout(longPressTimer);
+    card.classList.remove('dragging');
+  });
+
   return card;
 }
 
