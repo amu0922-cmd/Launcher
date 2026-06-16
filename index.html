@@ -379,9 +379,30 @@
   .category-order-empty{font-size:12px;color:var(--sub);padding:4px 2px;}
 
   /* wide banner links */
+  .layout-toggle{
+    display:flex;gap:8px;margin-top:6px;
+  }
+  .layout-btn{
+    flex:1;
+    padding:10px 6px;
+    border-radius:10px;
+    border:1.5px solid var(--border);
+    background:var(--card2);
+    color:var(--sub);
+    font-size:13px;font-weight:700;
+  }
+  .layout-btn.active{
+    border-color:var(--accent);
+    color:var(--accent);
+  }
   .banner-links{
     display:flex;flex-direction:column;gap:12px;
     margin-top:14px;
+  }
+  .banner-links .square-row{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
   }
   .banner-link-card{
     position:relative;
@@ -392,6 +413,12 @@
     background:var(--card);
     box-shadow:0 2px 8px rgba(0,0,0,.06);
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  }
+  .banner-link-card.square{
+    aspect-ratio:1/1;
+  }
+  .banner-link-card.square .banner-link-title{
+    font-size:11px;
   }
   .banner-link-card img{
     width:100%;height:100%;object-fit:cover;display:block;
@@ -463,6 +490,9 @@
     background:var(--card-solid);
     border-radius:20px 20px 0 0;
     width:100%;max-width:480px;
+    max-height:85vh;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
     padding:20px 20px calc(env(safe-area-inset-bottom) + 20px);
   }
   .sheet h2{margin:0 0 14px;font-size:16px;color:var(--text);}
@@ -629,7 +659,12 @@
 
 <div class="overlay" id="linkOverlay">
   <div class="sheet">
-    <h2 id="linkSheetTitle">横長リンクを追加</h2>
+    <h2 id="linkSheetTitle">リンクを追加</h2>
+    <label>表示形式</label>
+    <div class="layout-toggle">
+      <button class="layout-btn active" id="layoutBanner" data-layout="banner">📰 横長バナー</button>
+      <button class="layout-btn" id="layoutSquare" data-layout="square">🟦 正方形</button>
+    </div>
     <label>タイトル(任意・画像の左下に表示)</label>
     <input type="text" id="linkTitle" placeholder="例: 競馬ラボ">
     <label>カテゴリ(任意・タブで切り替え)</label>
@@ -914,6 +949,7 @@ let bannerLinks = loadBannerLinks();
 let currentCategory = localStorage.getItem(CATEGORY_KEY) || 'すべて';
 let editingLinkId = null;
 let pickedLinkImage = null;
+let pickedLayout = 'banner';
 
 function loadBannerLinks(){
   const raw = localStorage.getItem(LINKS_KEY);
@@ -1055,53 +1091,66 @@ function moveCategory(index, dir){
   renderBannerLinks();
 }
 
+function makeLinkCard(item){
+  const card = document.createElement('div');
+  card.className = 'banner-link-card' + (item.layout === 'square' ? ' square' : '');
+
+  if(item.image){
+    const img = document.createElement('img');
+    img.src = item.image;
+    img.alt = '';
+    card.appendChild(img);
+  }else{
+    const empty = document.createElement('div');
+    empty.className = 'banner-link-empty';
+    empty.textContent = item.layout === 'square' ? '＋' : '画像未設定(タップして設定)';
+    card.appendChild(empty);
+  }
+
+  if(item.title){
+    const overlay = document.createElement('div');
+    overlay.className = 'banner-link-overlay';
+    const titleEl = document.createElement('div');
+    titleEl.className = 'banner-link-title';
+    titleEl.textContent = item.title;
+    overlay.appendChild(titleEl);
+    card.appendChild(overlay);
+  }
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'edit-btn';
+  editBtn.textContent = '✏️';
+  editBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    e.preventDefault();
+    openLinkEdit(item.id);
+  });
+  card.appendChild(editBtn);
+
+  card.addEventListener('click', function(){
+    if(item.url){ launchApp(item.url); }
+    else{ openLinkEdit(item.id); }
+  });
+  return card;
+}
+
 function renderBannerLinks(){
   linksContainer.innerHTML = '';
-  getFilteredLinks().forEach(function(item){
-    const card = document.createElement('div');
-    card.className = 'banner-link-card';
+  const filtered = getFilteredLinks();
 
-    if(item.image){
-      const img = document.createElement('img');
-      img.src = item.image;
-      img.alt = '';
-      card.appendChild(img);
-    }else{
-      const empty = document.createElement('div');
-      empty.className = 'banner-link-empty';
-      empty.textContent = '画像未設定(タップして設定)';
-      card.appendChild(empty);
-    }
-
-    if(item.title){
-      const overlay = document.createElement('div');
-      overlay.className = 'banner-link-overlay';
-      const titleEl = document.createElement('div');
-      titleEl.className = 'banner-link-title';
-      titleEl.textContent = item.title;
-      overlay.appendChild(titleEl);
-      card.appendChild(overlay);
-    }
-
-    const editBtn = document.createElement('button');
-    editBtn.className = 'edit-btn';
-    editBtn.textContent = '✏️';
-    editBtn.addEventListener('click', function(e){
-      e.stopPropagation();
-      e.preventDefault();
-      openLinkEdit(item.id);
-    });
-    card.appendChild(editBtn);
-
-    card.addEventListener('click', function(){
-      if(item.url){
-        launchApp(item.url);
-      }else{
-        openLinkEdit(item.id);
+  let squareRow = null;
+  filtered.forEach(function(item){
+    if(item.layout === 'square'){
+      if(!squareRow){
+        squareRow = document.createElement('div');
+        squareRow.className = 'square-row';
+        linksContainer.appendChild(squareRow);
       }
-    });
-
-    linksContainer.appendChild(card);
+      squareRow.appendChild(makeLinkCard(item));
+    }else{
+      squareRow = null;
+      linksContainer.appendChild(makeLinkCard(item));
+    }
   });
 
   const addCard = document.createElement('div');
@@ -1117,6 +1166,17 @@ const linkTitleInput = document.getElementById('linkTitle');
 const linkCategoryInput = document.getElementById('linkCategory');
 const linkUrlInput = document.getElementById('linkUrl');
 const linkFileInput = document.getElementById('linkFile');
+
+/* layout toggle buttons */
+const layoutBannerBtn = document.getElementById('layoutBanner');
+const layoutSquareBtn = document.getElementById('layoutSquare');
+function setLayoutToggle(layout){
+  pickedLayout = layout;
+  layoutBannerBtn.classList.toggle('active', layout === 'banner');
+  layoutSquareBtn.classList.toggle('active', layout === 'square');
+}
+layoutBannerBtn.addEventListener('click', function(){ setLayoutToggle('banner'); });
+layoutSquareBtn.addEventListener('click', function(){ setLayoutToggle('square'); });
 const linkPreview = document.getElementById('linkPreview');
 const linkDeleteRow = document.getElementById('linkDeleteRow');
 
@@ -1134,11 +1194,12 @@ function showLinkPreview(src){
 function openLinkAdd(){
   editingLinkId = null;
   pickedLinkImage = null;
-  linkSheetTitle.textContent = '横長リンクを追加';
+  linkSheetTitle.textContent = 'リンクを追加';
   linkTitleInput.value = '';
   linkCategoryInput.value = (currentCategory !== 'すべて' && currentCategory !== '未分類') ? currentCategory : '';
   linkUrlInput.value = '';
   linkDeleteRow.style.display = 'none';
+  setLayoutToggle('banner');
   showLinkPreview(null);
   linkOverlay.classList.add('show');
 }
@@ -1148,11 +1209,12 @@ function openLinkEdit(id){
   if(!item) return;
   editingLinkId = id;
   pickedLinkImage = item.image || null;
-  linkSheetTitle.textContent = '横長リンクを編集';
+  linkSheetTitle.textContent = 'リンクを編集';
   linkTitleInput.value = item.title || '';
   linkCategoryInput.value = item.category || '';
   linkUrlInput.value = item.url || '';
   linkDeleteRow.style.display = 'flex';
+  setLayoutToggle(item.layout || 'banner');
   showLinkPreview(item.image);
   linkOverlay.classList.add('show');
 }
@@ -1190,12 +1252,14 @@ document.getElementById('linkSave').addEventListener('click', function(){
   const url = linkUrlInput.value.trim();
   const title = linkTitleInput.value.trim();
   const category = linkCategoryInput.value.trim();
+  const layout = pickedLayout || 'banner';
   const before = JSON.stringify(bannerLinks);
   if(editingLinkId){
     const item = bannerLinks.find(function(a){ return a.id === editingLinkId; });
     item.url = url;
     item.title = title;
     item.category = category;
+    item.layout = layout;
     item.image = pickedLinkImage;
   }else{
     if(!pickedLinkImage && !url) return;
@@ -1204,6 +1268,7 @@ document.getElementById('linkSave').addEventListener('click', function(){
       url: url,
       title: title,
       category: category,
+      layout: layout,
       image: pickedLinkImage
     });
   }
