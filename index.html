@@ -435,15 +435,23 @@
   .banner-link-overlay{
     position:absolute;inset:0;
     display:flex;align-items:flex-end;
-    padding:12px 14px;
-    background:linear-gradient(to top, rgba(0,0,0,.6), rgba(0,0,0,0) 55%);
+    padding:10px 10px;
+    background:linear-gradient(to top, rgba(0,0,0,.55), rgba(0,0,0,0) 50%);
     pointer-events:none;
   }
   .banner-link-title{
+    display:inline-block;
     color:#fff;
-    font-size:14px;font-weight:800;
+    font-size:13px;font-weight:800;
     letter-spacing:.03em;
-    text-shadow:0 1px 4px rgba(0,0,0,.5);
+    background:rgba(0,0,0,.52);
+    backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+    padding:4px 10px;
+    border-radius:999px;
+    max-width:calc(100% - 36px);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
   .banner-link-card .edit-btn{
     position:absolute;
