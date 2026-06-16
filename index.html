@@ -171,6 +171,12 @@
     box-shadow:0 2px 6px rgba(0,0,0,.06);
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   }
+  .feed-thumb-img{
+    width:100%;
+    aspect-ratio:16/9;
+    object-fit:cover;
+    display:block;
+  }
   .feed-link{
     display:flex;
     align-items:flex-start;
@@ -178,6 +184,9 @@
     text-decoration:none;
     color:var(--text);
     padding:14px 14px 0;
+  }
+  .feed-link.has-thumb{
+    padding:12px 14px 0;
   }
   .feed-icon{
     width:36px;height:36px;
@@ -669,13 +678,17 @@
     <input type="text" id="linkTitle" placeholder="例: 競馬ラボ">
     <label>カテゴリ(任意・タブで切り替え)</label>
     <input type="text" id="linkCategory" placeholder="例: 競馬">
-    <label>リンク先URL(任意)</label>
-    <input type="url" id="linkUrl" placeholder="https://example.com/">
-    <label>画像</label>
+    <label>リンク先URL</label>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="url" id="linkUrl" placeholder="https://example.com/" style="flex:1;">
+      <button class="btn-save" id="fetchThumbBtn" style="flex-shrink:0;padding:10px 10px;border-radius:10px;font-size:12px;">🔍取得</button>
+    </div>
+    <label>画像 <span id="thumbStatus" style="color:var(--sub);font-size:11px;"></span></label>
     <div class="link-preview" id="linkPreview">画像未設定</div>
     <div class="sheet-actions">
-      <label class="btn-cancel" for="linkFile" style="text-align:center;display:flex;align-items:center;justify-content:center;">🖼️ 画像を選択</label>
+      <label class="btn-cancel" for="linkFile" style="text-align:center;display:flex;align-items:center;justify-content:center;">🖼️ 手動で選択</label>
       <input type="file" id="linkFile" accept="image/*" style="display:none;">
+      <button class="btn-cancel" id="clearThumbBtn">🗑️ クリア</button>
     </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="linkCancel">キャンセル</button>
@@ -1179,6 +1192,7 @@ layoutBannerBtn.addEventListener('click', function(){ setLayoutToggle('banner');
 layoutSquareBtn.addEventListener('click', function(){ setLayoutToggle('square'); });
 const linkPreview = document.getElementById('linkPreview');
 const linkDeleteRow = document.getElementById('linkDeleteRow');
+const thumbStatus = document.getElementById('thumbStatus');
 
 function showLinkPreview(src){
   linkPreview.innerHTML = '';
@@ -1190,6 +1204,53 @@ function showLinkPreview(src){
     linkPreview.textContent = '画像未設定';
   }
 }
+
+async function fetchLinkMeta(url){
+  try{
+    const res = await fetch('https://api.microlink.io/?url=' + encodeURIComponent(url));
+    const json = await res.json();
+    if(json && json.status === 'success' && json.data){
+      const d = json.data;
+      return {
+        title: (d.title || '').trim(),
+        image: (d.image && d.image.url) || (d.screenshot && d.screenshot.url) || ''
+      };
+    }
+  }catch(e){}
+  return null;
+}
+
+async function autoFetchThumb(){
+  const url = linkUrlInput.value.trim();
+  if(!url){ return; }
+  thumbStatus.textContent = '取得中...';
+  const meta = await fetchLinkMeta(url);
+  if(meta){
+    if(meta.image){
+      pickedLinkImage = meta.image;
+      showLinkPreview(meta.image);
+      thumbStatus.textContent = '✓ 取得成功';
+    }else{
+      thumbStatus.textContent = '画像なし';
+    }
+    if(meta.title && !linkTitleInput.value.trim()){
+      linkTitleInput.value = meta.title;
+    }
+  }else{
+    thumbStatus.textContent = '取得失敗';
+  }
+  setTimeout(function(){ thumbStatus.textContent = ''; }, 3000);
+}
+
+document.getElementById('fetchThumbBtn').addEventListener('click', function(){
+  autoFetchThumb();
+});
+
+document.getElementById('clearThumbBtn').addEventListener('click', function(){
+  pickedLinkImage = null;
+  showLinkPreview(null);
+  thumbStatus.textContent = '';
+});
 
 function openLinkAdd(){
   editingLinkId = null;
@@ -1737,6 +1798,62 @@ function formatRelative(pubDate){
   return Math.floor(diffH / 24) + '日前';
 }
 
+/* ---- feed thumbnail cache ---- */
+const THUMB_CACHE_KEY = 'launcherThumbCache';
+const THUMB_CACHE_MAX = 200;
+
+function loadThumbCache(){
+  try{
+    const raw = localStorage.getItem(THUMB_CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }catch(e){ return {}; }
+}
+function saveThumbCache(cache){
+  try{
+    const keys = Object.keys(cache);
+    if(keys.length > THUMB_CACHE_MAX){
+      const trimmed = {};
+      keys.slice(-THUMB_CACHE_MAX).forEach(function(k){ trimmed[k] = cache[k]; });
+      localStorage.setItem(THUMB_CACHE_KEY, JSON.stringify(trimmed));
+    }else{
+      localStorage.setItem(THUMB_CACHE_KEY, JSON.stringify(cache));
+    }
+  }catch(e){}
+}
+
+let thumbCache = loadThumbCache();
+
+async function fetchAndApplyThumb(link, imgEl, iconEl){
+  if(thumbCache[link] !== undefined){
+    if(thumbCache[link]){
+      imgEl.src = thumbCache[link];
+      imgEl.style.display = 'block';
+      if(iconEl) iconEl.style.display = 'none';
+    }
+    return;
+  }
+  try{
+    const res = await fetch('https://api.microlink.io/?url=' + encodeURIComponent(link));
+    const json = await res.json();
+    if(json && json.status === 'success' && json.data){
+      const d = json.data;
+      const imageUrl = (d.image && d.image.url) || '';
+      thumbCache[link] = imageUrl;
+      saveThumbCache(thumbCache);
+      if(imageUrl){
+        imgEl.src = imageUrl;
+        imgEl.style.display = 'block';
+        if(iconEl) iconEl.style.display = 'none';
+      }
+    }else{
+      thumbCache[link] = '';
+      saveThumbCache(thumbCache);
+    }
+  }catch(e){
+    thumbCache[link] = '';
+  }
+}
+
 function renderFeed(items){
   feedList.innerHTML = '';
   if(!items || !items.length){
@@ -1746,15 +1863,36 @@ function renderFeed(items){
     feedList.appendChild(empty);
     return;
   }
+
+  const observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(!entry.isIntersecting) return;
+      observer.unobserve(entry.target);
+      const link = entry.target.dataset.link;
+      const imgEl = entry.target.querySelector('.feed-thumb-img');
+      const iconEl = entry.target.querySelector('.feed-icon');
+      if(link && imgEl) fetchAndApplyThumb(link, imgEl, iconEl);
+    });
+  }, {rootMargin:'200px'});
+
   items.slice(0, 40).forEach(function(item){
     const card = document.createElement('div');
     card.className = 'feed-card';
+    card.dataset.link = item.link;
 
-    const link = document.createElement('a');
-    link.className = 'feed-link';
-    link.href = item.link;
-    link.target = '_blank';
-    link.rel = 'noopener';
+    /* thumbnail area (hidden until loaded) */
+    const thumbImg = document.createElement('img');
+    thumbImg.className = 'feed-thumb-img';
+    thumbImg.alt = '';
+    thumbImg.style.display = 'none';
+    thumbImg.onerror = function(){ this.style.display='none'; };
+    card.appendChild(thumbImg);
+
+    const linkEl = document.createElement('a');
+    linkEl.className = 'feed-link';
+    linkEl.href = item.link;
+    linkEl.target = '_blank';
+    linkEl.rel = 'noopener';
 
     const icon = document.createElement('div');
     icon.className = 'feed-icon';
@@ -1765,8 +1903,8 @@ function renderFeed(items){
     title.className = 'feed-card-title';
     title.textContent = item.title || '';
 
-    link.appendChild(icon);
-    link.appendChild(title);
+    linkEl.appendChild(icon);
+    linkEl.appendChild(title);
 
     const metaRow = document.createElement('div');
     metaRow.className = 'feed-meta-row';
@@ -1776,6 +1914,17 @@ function renderFeed(items){
     const src = (item.source && item.source.name) || item.author || '';
     const date = formatRelative(item.pubDate);
     meta.textContent = [src, date].filter(Boolean).join(' ・ ');
+
+    const favBtn = document.createElement('button');
+    favBtn.className = 'feed-share';
+    favBtn.title = 'お気に入り';
+    favBtn.textContent = isFavorited(item.link) ? '⭐' : '☆';
+    favBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      e.stopPropagation();
+      toggleFavorite(item);
+      favBtn.textContent = isFavorited(item.link) ? '⭐' : '☆';
+    });
 
     const shareBtn = document.createElement('button');
     shareBtn.className = 'feed-share';
@@ -1791,24 +1940,16 @@ function renderFeed(items){
       }
     });
 
-    const favBtn = document.createElement('button');
-    favBtn.className = 'feed-share';
-    favBtn.title = 'お気に入り';
-    favBtn.textContent = isFavorited(item.link) ? '⭐' : '☆';
-    favBtn.addEventListener('click', function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      toggleFavorite(item);
-      favBtn.textContent = isFavorited(item.link) ? '⭐' : '☆';
-    });
-
     metaRow.appendChild(meta);
     metaRow.appendChild(favBtn);
     metaRow.appendChild(shareBtn);
 
-    card.appendChild(link);
+    card.appendChild(linkEl);
     card.appendChild(metaRow);
     feedList.appendChild(card);
+
+    /* lazy observe for thumbnail */
+    observer.observe(card);
   });
 }
 
