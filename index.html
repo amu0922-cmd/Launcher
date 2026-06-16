@@ -55,21 +55,6 @@
   .wrap{max-width:480px;margin:0 auto;}
 
   /* page dots */
-  .page-dots{
-    position:fixed;
-    bottom:calc(env(safe-area-inset-bottom) + 82px);
-    left:0;right:0;
-    display:flex;justify-content:center;gap:6px;
-    pointer-events:none;
-    z-index:40;
-  }
-  .page-dots .dot{
-    width:7px;height:7px;border-radius:50%;
-    background:var(--sub);opacity:.4;
-    transition:opacity .2s, transform .2s;
-  }
-  .page-dots .dot.active{opacity:1;background:var(--accent);transform:scale(1.25);}
-
   /* feed page header */
   .page-header{
     display:flex;align-items:center;justify-content:space-between;
@@ -126,62 +111,6 @@
   }
 
   /* banner */
-  /* FAB */
-  .fab-wrap{
-    position:absolute;
-    right:14px;
-    bottom:calc(env(safe-area-inset-bottom) + 90px);
-    z-index:45;
-    display:flex;flex-direction:column;align-items:center;gap:10px;
-  }
-  .fab-main{
-    width:42px;height:42px;border-radius:50%;
-    border:none;
-    background:var(--card);
-    color:var(--sub);
-    font-size:18px;
-    box-shadow:0 2px 10px rgba(0,0,0,.15);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    display:flex;align-items:center;justify-content:center;
-    transition:transform .2s, background .2s;
-    flex-shrink:0;
-  }
-  .fab-wrap.open .fab-main{
-    background:var(--accent);
-    color:#fff;
-    transform:rotate(90deg);
-  }
-  .fab-menu{
-    display:flex;flex-direction:column;align-items:center;gap:8px;
-    overflow:hidden;
-    max-height:0;
-    opacity:0;
-    transition:max-height .25s ease, opacity .2s ease;
-    pointer-events:none;
-    order:-1;
-  }
-  .fab-wrap.open .fab-menu{
-    max-height:200px;
-    opacity:1;
-    pointer-events:auto;
-  }
-  .fab-item{
-    width:38px;height:38px;border-radius:50%;
-    border:none;
-    background:var(--card);
-    color:var(--text);
-    font-size:16px;
-    box-shadow:0 2px 8px rgba(0,0,0,.12);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    display:flex;align-items:center;justify-content:center;
-    transform:scale(0);
-    transition:transform .2s;
-  }
-  .fab-wrap.open .fab-item{transform:scale(1);}
-  .fab-wrap.open .fab-item:nth-child(1){transition-delay:.05s;}
-  .fab-wrap.open .fab-item:nth-child(2){transition-delay:.1s;}
-  .fab-wrap.open .fab-item:nth-child(3){transition-delay:.15s;}
-
   /* feed */
   .feed-section{margin-top:18px;}
   .feed-heading{
@@ -282,12 +211,22 @@
     color:#fff;
     box-shadow:0 2px 6px rgba(236,68,100,.3);
   }
+  .section-tab-actions{
+    display:flex;align-items:center;gap:2px;
+    margin-left:auto;flex-shrink:0;
+  }
+  .stab-btn{
+    width:32px;height:32px;border-radius:50%;
+    border:none;background:transparent;
+    color:var(--sub);font-size:15px;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+  }
+  .stab-btn:active{background:var(--card2);}
   .sec-header{
     display:flex;justify-content:flex-end;
     margin-bottom:8px;
   }
-
-  /* search */
   /* fixed bottom search bar */
   .search-bar-fixed{
     position:fixed;
@@ -753,16 +692,6 @@
   <div class="page" id="pageHome">
     <div class="ptr-indicator" id="ptrIndicator">↓</div>
 
-    <!-- FAB -->
-    <div class="fab-wrap" id="fabWrap">
-      <div class="fab-menu" id="fabMenu">
-        <button class="fab-item" id="themeBtn" title="テーマ切替">🌙</button>
-        <button class="fab-item" id="refreshBtn" title="更新">🔄</button>
-        <button class="fab-item" id="settingsBtn" title="設定">⚙️</button>
-      </div>
-      <button class="fab-main" id="fabMain">☰</button>
-    </div>
-
     <div class="wrap">
 
       <!-- section tabs -->
@@ -770,6 +699,11 @@
         <button class="section-tab active" data-sec="home">🏠 ホーム</button>
         <button class="section-tab" data-sec="feed">📰 フィード</button>
         <button class="section-tab" data-sec="fav">⭐ お気に入り</button>
+        <div class="section-tab-actions">
+          <button class="stab-btn" id="themeBtn" title="テーマ">🌙</button>
+          <button class="stab-btn" id="refreshBtn" title="更新">🔄</button>
+          <button class="stab-btn" id="settingsBtn" title="設定">⚙️</button>
+        </div>
       </div>
 
       <!-- home section -->
@@ -812,9 +746,7 @@
   </form>
 </div>
 
-<div class="page-dots">
-  <span class="dot active" data-page="0"></span>
-</div>
+
 
 <div class="overlay" id="overlay">
   <div class="sheet">
@@ -1590,28 +1522,6 @@ document.getElementById('linkDelete').addEventListener('click', function(){
 
 renderCategoryTabs();
 renderBannerLinks();
-
-/* ---- FAB ---- */
-const fabWrap = document.getElementById('fabWrap');
-const fabMain = document.getElementById('fabMain');
-
-function closeFab(){ fabWrap.classList.remove('open'); }
-function toggleFab(){ fabWrap.classList.toggle('open'); }
-
-fabMain.addEventListener('click', function(e){
-  e.stopPropagation();
-  toggleFab();
-});
-
-/* close FAB when tapping elsewhere */
-document.addEventListener('click', function(e){
-  if(!fabWrap.contains(e.target)) closeFab();
-});
-
-/* close FAB after any item is tapped */
-fabWrap.querySelectorAll('.fab-item').forEach(function(btn){
-  btn.addEventListener('click', function(){ setTimeout(closeFab, 250); });
-});
 
 /* ---- theme toggle ---- */
 const THEME_KEY = 'launcherTheme';
