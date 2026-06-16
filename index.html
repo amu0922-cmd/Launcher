@@ -391,6 +391,14 @@
     border-color:var(--accent);
     color:var(--accent);
   }
+  .category-tab-add{
+    color:var(--sub);
+    border-color:transparent;
+    background:transparent;
+    font-size:16px;
+    padding:8px 10px;
+    opacity:.55;
+  }
   .category-order-list{
     display:flex;flex-direction:column;gap:6px;margin-top:6px;
   }
@@ -607,6 +615,15 @@
 <body>
 <div class="pager" id="pager">
 
+  <div class="page" id="pageFavorites">
+    <div class="wrap">
+      <div class="page-header">
+        <h2>⭐ お気に入り</h2>
+      </div>
+      <div class="feed-list" id="favoritesList"></div>
+    </div>
+  </div>
+
   <div class="page" id="pageHome">
     <div class="wrap">
 
@@ -653,15 +670,6 @@
     </div>
   </div>
 
-  <div class="page" id="pageFavorites">
-    <div class="wrap">
-      <div class="page-header">
-        <h2>⭐ お気に入り</h2>
-      </div>
-      <div class="feed-list" id="favoritesList"></div>
-    </div>
-  </div>
-
 </div>
 
 <div class="search-bar-fixed" id="searchBarFixed">
@@ -674,8 +682,8 @@
 </div>
 
 <div class="page-dots">
-  <span class="dot active" data-page="0"></span>
-  <span class="dot" data-page="1"></span>
+  <span class="dot" data-page="0"></span>
+  <span class="dot active" data-page="1"></span>
   <span class="dot" data-page="2"></span>
 </div>
 
@@ -1056,27 +1064,32 @@ function getOrderedCategories(){
 function renderCategoryTabs(){
   const cats = getOrderedCategories();
   categoryTabsEl.innerHTML = '';
-  if(!cats.length){
-    categoryTabsEl.style.display = 'none';
-    currentCategory = 'すべて';
-    localStorage.setItem(CATEGORY_KEY, currentCategory);
-    return;
-  }
-  if(cats.indexOf(currentCategory) === -1) currentCategory = cats[0];
-  localStorage.setItem(CATEGORY_KEY, currentCategory);
   categoryTabsEl.style.display = 'flex';
-  cats.forEach(function(cat){
-    const tab = document.createElement('button');
-    tab.className = 'category-tab' + (cat === currentCategory ? ' active' : '');
-    tab.textContent = cat;
-    tab.addEventListener('click', function(){
-      currentCategory = cat;
-      localStorage.setItem(CATEGORY_KEY, currentCategory);
-      renderCategoryTabs();
-      renderBannerLinks();
+
+  if(cats.length){
+    if(cats.indexOf(currentCategory) === -1) currentCategory = cats[0];
+    localStorage.setItem(CATEGORY_KEY, currentCategory);
+    cats.forEach(function(cat){
+      const tab = document.createElement('button');
+      tab.className = 'category-tab' + (cat === currentCategory ? ' active' : '');
+      tab.textContent = cat;
+      tab.addEventListener('click', function(){
+        currentCategory = cat;
+        localStorage.setItem(CATEGORY_KEY, currentCategory);
+        renderCategoryTabs();
+        renderBannerLinks();
+      });
+      categoryTabsEl.appendChild(tab);
     });
-    categoryTabsEl.appendChild(tab);
-  });
+  }
+
+  /* subtle add button always at end */
+  const addTab = document.createElement('button');
+  addTab.className = 'category-tab category-tab-add';
+  addTab.textContent = '＋';
+  addTab.title = 'リンクを追加';
+  addTab.addEventListener('click', function(){ openLinkAdd(); });
+  categoryTabsEl.appendChild(addTab);
 }
 
 function getFilteredLinks(){
@@ -1201,12 +1214,6 @@ function renderBannerLinks(){
       linksContainer.appendChild(makeLinkCard(item));
     }
   });
-
-  const addCard = document.createElement('div');
-  addCard.className = 'banner-link-add';
-  addCard.textContent = '+';
-  addCard.addEventListener('click', function(){ openLinkAdd(); });
-  linksContainer.appendChild(addCard);
 }
 
 const linkOverlay = document.getElementById('linkOverlay');
@@ -1413,13 +1420,16 @@ const pager = document.getElementById('pager');
 const pageDots = document.querySelectorAll('.page-dots .dot');
 const searchBarFixed = document.getElementById('searchBarFixed');
 
+/* start on home page (index 1) */
+pager.scrollLeft = pager.clientWidth;
+
 pager.addEventListener('scroll', function(){
   const idx = Math.round(pager.scrollLeft / pager.clientWidth);
   pageDots.forEach(function(d, i){
     d.classList.toggle('active', i === idx);
   });
-  /* show search bar only on home page */
-  searchBarFixed.style.display = idx === 0 ? '' : 'none';
+  /* show search bar only on home page (idx 1) */
+  searchBarFixed.style.display = idx === 1 ? '' : 'none';
 });
 
 /* ---- search + suggestions ---- */
