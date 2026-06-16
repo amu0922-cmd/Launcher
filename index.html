@@ -721,9 +721,87 @@
     padding:12px;
     font-size:15px;font-weight:700;
   }
-  .btn-save{background:var(--accent);color:#fff;}
-  .btn-cancel{background:var(--card2);color:var(--text);}
-  .btn-delete{background:#ffe1e6;color:#d23a55;}
+  /* browser section */
+  #secBrowser{
+    position:fixed;
+    top:0;left:0;right:0;bottom:0;
+    z-index:35;
+    display:none;
+    flex-direction:column;
+    background:var(--bg);
+  }
+  #secBrowser.visible{ display:flex; }
+  .browser-bar{
+    display:flex;align-items:center;gap:6px;
+    padding:8px 10px;
+    padding-top:calc(env(safe-area-inset-top) + 8px);
+    background:var(--card);
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .browser-back{
+    width:34px;height:34px;border-radius:50%;border:none;
+    background:var(--card2);color:var(--text);font-size:18px;flex-shrink:0;
+  }
+  .browser-url-bar{
+    flex:1;display:flex;align-items:center;
+    background:var(--card2);
+    border-radius:10px;padding:0 10px;height:34px;overflow:hidden;
+  }
+  .browser-url-bar input{
+    flex:1;border:none;background:transparent;
+    color:var(--text);font-size:13px;outline:none;
+    padding:0;min-width:0;
+  }
+  .browser-go{
+    background:var(--accent);color:#fff;border:none;
+    border-radius:8px;padding:4px 10px;font-size:13px;font-weight:700;
+    flex-shrink:0;
+  }
+  .browser-tabs-bar{
+    display:flex;align-items:center;gap:6px;
+    padding:6px 10px;
+    background:var(--card);
+    border-bottom:1px solid var(--border);
+    overflow-x:auto;flex-shrink:0;
+  }
+  .browser-tabs-bar::-webkit-scrollbar{display:none;}
+  .btab{
+    display:flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:999px;
+    background:var(--card2);border:none;
+    color:var(--text);font-size:12px;font-weight:700;
+    flex-shrink:0;white-space:nowrap;max-width:130px;
+  }
+  .btab.active{background:var(--accent);color:#fff;}
+  .btab .btab-close{
+    background:none;border:none;color:inherit;
+    font-size:14px;padding:0;line-height:1;flex-shrink:0;
+    opacity:.7;
+  }
+  .btab-add{
+    width:30px;height:30px;border-radius:50%;
+    background:var(--card2);border:none;
+    color:var(--text);font-size:18px;flex-shrink:0;
+  }
+  .browser-frame-wrap{
+    flex:1;position:relative;overflow:hidden;
+  }
+  .browser-iframe{
+    position:absolute;inset:0;
+    width:100%;height:100%;
+    border:none;
+  }
+  .browser-blocked{
+    position:absolute;inset:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:12px;padding:20px;text-align:center;
+  }
+  .browser-blocked .msg{font-size:14px;color:var(--sub);}
+  .browser-blocked .ext-btn{
+    background:var(--accent);color:#fff;border:none;
+    border-radius:12px;padding:12px 20px;font-size:14px;font-weight:700;
+  }
 </style>
 </head>
 <body>
@@ -740,6 +818,7 @@
         <button class="section-tab active" data-sec="home">🏠 ホーム</button>
         <button class="section-tab" data-sec="feed">📰 フィード</button>
         <button class="section-tab" data-sec="fav">⭐ お気に入り</button>
+        <button class="section-tab" data-sec="browser">🌐 ブラウザ</button>
         <div class="section-tab-actions">
           <button class="stab-btn" id="themeBtn" title="テーマ">🌙</button>
           <button class="stab-btn" id="refreshBtn" title="更新">🔄</button>
@@ -774,7 +853,24 @@
         </div>
       </div>
 
+      <!-- browser section is rendered full-screen outside wrap -->
+
     </div>
+  </div>
+
+  <!-- browser full-screen panel -->
+  <div id="secBrowser">
+    <div class="browser-bar">
+      <button class="browser-back" id="browserBack">←</button>
+      <div class="browser-url-bar">
+        <input type="url" id="browserUrlInput" placeholder="URLを入力">
+      </div>
+      <button class="browser-go" id="browserGo">移動</button>
+    </div>
+    <div class="browser-tabs-bar" id="browserTabsBar">
+      <button class="btab-add" id="browserNewTab">＋</button>
+    </div>
+    <div class="browser-frame-wrap" id="browserFrameWrap"></div>
   </div>
 
 </div><!-- end pager-inner -->
@@ -937,7 +1033,7 @@ function initialOf(name){
 
 function launchApp(url){
   if(!url) return;
-  window.location.href = url;
+  openInBrowser(url);
 }
 
 function renderGrid(){
@@ -1670,6 +1766,7 @@ const sections = {
 let currentSection = 'home';
 
 const weatherBoxEl = document.getElementById('weatherBox');
+const browserPanel = document.getElementById('secBrowser');
 
 function goToSection(key){
   currentSection = key;
@@ -1680,6 +1777,9 @@ function goToSection(key){
     btn.classList.toggle('active', btn.dataset.sec === key);
   });
   weatherBoxEl.style.display = key === 'home' ? '' : 'none';
+  searchBarFixed.style.display = key === 'home' ? '' : 'none';
+  /* browser is full-screen overlay */
+  browserPanel.classList.toggle('visible', key === 'browser');
   if(key === 'fav'){ renderFavorites(); renderReadLater(); }
   if(key === 'feed' && !document.getElementById('feedList').children.length) loadFeed();
 }
@@ -1688,7 +1788,184 @@ document.querySelectorAll('.section-tab').forEach(function(btn){
   btn.addEventListener('click', function(){ goToSection(btn.dataset.sec); });
 });
 
-/* keyboard: keep search bar above keyboard */
+/* ---- browser tabs ---- */
+const browserTabsBar = document.getElementById('browserTabsBar');
+const browserFrameWrap = document.getElementById('browserFrameWrap');
+const browserUrlInput = document.getElementById('browserUrlInput');
+const browserBack = document.getElementById('browserBack');
+const browserGo = document.getElementById('browserGo');
+const browserNewTab = document.getElementById('browserNewTab');
+
+let btabs = [];    /* [{id, url, title, iframe}] */
+let activeTabId = null;
+
+function normalizeUrl(raw){
+  raw = raw.trim();
+  if(!raw) return '';
+  if(!/^https?:\/\//i.test(raw)){
+    if(raw.includes('.') && !raw.includes(' ')) raw = 'https://' + raw;
+    else return 'https://www.google.com/search?q=' + encodeURIComponent(raw);
+  }
+  return raw;
+}
+
+function renderBrowserTabs(){
+  browserTabsBar.innerHTML = '';
+  btabs.forEach(function(tab){
+    const btn = document.createElement('button');
+    btn.className = 'btab' + (tab.id === activeTabId ? ' active' : '');
+
+    const label = document.createElement('span');
+    label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;';
+    label.textContent = tab.title || tab.url || '新しいタブ';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btab-close';
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      closeTab(tab.id);
+    });
+
+    btn.appendChild(label);
+    btn.appendChild(closeBtn);
+    btn.addEventListener('click', function(){ switchTab(tab.id); });
+    browserTabsBar.appendChild(btn);
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btab-add';
+  addBtn.textContent = '＋';
+  addBtn.addEventListener('click', function(){ openNewTab(''); });
+  browserTabsBar.appendChild(addBtn);
+}
+
+function showFrame(tab){
+  /* hide all iframes */
+  btabs.forEach(function(t){
+    if(t.iframe) t.iframe.style.display = 'none';
+  });
+  browserFrameWrap.querySelectorAll('.browser-blocked').forEach(function(el){ el.remove(); });
+
+  if(!tab) return;
+  browserUrlInput.value = tab.url || '';
+
+  if(!tab.url){
+    /* blank new tab */
+    return;
+  }
+  if(!tab.iframe){
+    const iframe = document.createElement('iframe');
+    iframe.className = 'browser-iframe';
+    iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation';
+    iframe.src = tab.url;
+    iframe.addEventListener('load', function(){
+      try{
+        const t2 = btabs.find(function(t){ return t.id === tab.id; });
+        if(t2 && !t2.title){
+          t2.title = iframe.contentDocument && iframe.contentDocument.title || '';
+          renderBrowserTabs();
+        }
+      }catch(e){}
+    });
+    iframe.addEventListener('error', function(){
+      showBlocked(tab);
+    });
+    browserFrameWrap.appendChild(iframe);
+    tab.iframe = iframe;
+
+    /* detect X-Frame-Options block via timeout */
+    setTimeout(function(){
+      try{
+        if(iframe.contentDocument === null){ showBlocked(tab); }
+      }catch(e){ showBlocked(tab); }
+    }, 3000);
+  }else{
+    tab.iframe.style.display = '';
+  }
+}
+
+function showBlocked(tab){
+  if(!tab.iframe) return;
+  tab.iframe.style.display = 'none';
+  const div = document.createElement('div');
+  div.className = 'browser-blocked';
+  div.innerHTML = '<div class="msg">😢 このサイトはiframe内での表示をブロックしています</div>';
+  const extBtn = document.createElement('button');
+  extBtn.className = 'ext-btn';
+  extBtn.textContent = '🌐 外部ブラウザで開く';
+  extBtn.addEventListener('click', function(){ window.open(tab.url, '_blank'); });
+  div.appendChild(extBtn);
+  browserFrameWrap.appendChild(div);
+}
+
+function switchTab(id){
+  activeTabId = id;
+  const tab = btabs.find(function(t){ return t.id === id; });
+  renderBrowserTabs();
+  showFrame(tab || null);
+}
+
+function openNewTab(url){
+  const id = 'btab_' + Date.now();
+  const tab = { id: id, url: normalizeUrl(url), title: '', iframe: null };
+  btabs.push(tab);
+  switchTab(id);
+}
+
+function closeTab(id){
+  const idx = btabs.findIndex(function(t){ return t.id === id; });
+  if(idx === -1) return;
+  const tab = btabs[idx];
+  if(tab.iframe) tab.iframe.remove();
+  btabs.splice(idx, 1);
+  if(btabs.length === 0){
+    activeTabId = null;
+    renderBrowserTabs();
+    browserFrameWrap.innerHTML = '';
+    browserUrlInput.value = '';
+    goToSection('home');
+  }else{
+    const next = btabs[Math.min(idx, btabs.length - 1)];
+    switchTab(next.id);
+  }
+}
+
+function browserNavigate(url){
+  url = normalizeUrl(url);
+  if(!url) return;
+  if(!activeTabId){
+    openNewTab(url);
+    return;
+  }
+  const tab = btabs.find(function(t){ return t.id === activeTabId; });
+  if(!tab) return;
+  tab.url = url;
+  tab.title = '';
+  if(tab.iframe){ tab.iframe.remove(); tab.iframe = null; }
+  browserFrameWrap.querySelectorAll('.browser-blocked').forEach(function(el){ el.remove(); });
+  renderBrowserTabs();
+  showFrame(tab);
+}
+
+browserGo.addEventListener('click', function(){
+  browserNavigate(browserUrlInput.value);
+});
+browserUrlInput.addEventListener('keydown', function(e){
+  if(e.key === 'Enter') browserNavigate(browserUrlInput.value);
+});
+browserBack.addEventListener('click', function(){
+  goToSection('home');
+});
+browserNewTab.addEventListener('click', function(){ openNewTab(''); });
+
+/* expose so link cards can open in browser */
+function openInBrowser(url){
+  goToSection('browser');
+  openNewTab(url);
+}
+
+/* ---- keyboard: keep search bar above keyboard ---- */
 if(window.visualViewport){
   window.visualViewport.addEventListener('resize', function(){
     const keyboardH = window.innerHeight - window.visualViewport.height;
