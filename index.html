@@ -50,7 +50,7 @@
     height:100%;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 90px) 14px;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 160px) 14px;
   }
   .wrap{max-width:480px;margin:0 auto;}
 
@@ -84,21 +84,23 @@
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   }
 
-  /* inline weekly weather strip */
-  .weather-strip{
+  /* weekly weather strip — fixed above search bar, transparent on background */
+  .weather-fixed{
+    position:fixed;
+    bottom:calc(env(safe-area-inset-bottom) + 90px);
+    left:50%;transform:translateX(-50%);
+    width:calc(100% - 28px);
+    max-width:452px;
+    z-index:39;
     display:flex;
     align-items:center;
     gap:4px;
-    padding:8px 4px 6px;
+    padding:6px 4px;
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
-    background:var(--card);
-    border-radius:16px 16px 0 0;
-    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-    margin-bottom:0;
     cursor:pointer;
   }
-  .weather-strip::-webkit-scrollbar{display:none;}
+  .weather-fixed::-webkit-scrollbar{display:none;}
   .ws-day{
     flex:1 0 auto;
     min-width:40px;
@@ -317,12 +319,11 @@
     display:flex;
     align-items:center;
     background:var(--card);
-    border-radius:0 0 999px 999px;
+    border-radius:999px;
     padding:6px 6px 6px 16px;
     box-shadow:0 4px 20px rgba(0,0,0,.18);
     backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
     border:1px solid var(--border);
-    border-top:none;
   }
   .search-g-logo{
     font-size:17px;font-weight:900;
@@ -791,11 +792,12 @@
 </div><!-- end pager-inner -->
 </div><!-- end pager -->
 
+<div class="weather-fixed" id="weatherBox">
+  <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
+  <button class="ws-reload" id="wReload" title="更新">↻</button>
+</div>
+
 <div class="search-bar-fixed" id="searchBarFixed">
-  <div class="weather-strip" id="weatherBox">
-    <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
-    <button class="ws-reload" id="wReload" title="更新">↻</button>
-  </div>
   <div class="suggest-list" id="suggestList"></div>
   <form class="search-box" id="searchForm" autocomplete="off">
     <span class="search-g-logo">G</span>
