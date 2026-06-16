@@ -84,44 +84,35 @@
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   }
 
-  /* weather card */
-  .weather-card{
-    background:var(--card);
-    border-radius:16px;
-    padding:12px 16px;
-    margin-top:12px;
-    box-shadow:0 2px 8px rgba(0,0,0,.07);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-    cursor:pointer;
+  /* inline weekly weather strip */
+  .weather-strip{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding:14px 4px 6px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
   }
-  .wc-main{
-    display:flex;align-items:center;justify-content:space-between;
-    margin-bottom:10px;
+  .weather-strip::-webkit-scrollbar{display:none;}
+  .ws-day{
+    flex:1 0 auto;
+    min-width:40px;
+    text-align:center;
+    color:var(--text);
   }
-  .wc-left{display:flex;align-items:center;gap:10px;}
-  .wc-icon{font-size:28px;line-height:1;}
-  .wc-temp{
-    font-size:22px;font-weight:800;color:var(--text);
-    display:block;line-height:1.1;
+  .ws-day .ws-name{
+    font-size:11px;font-weight:700;
+    color:var(--sub);margin-bottom:3px;
   }
-  .wc-place{font-size:11px;color:var(--sub);display:block;margin-top:2px;}
-  .wc-reload{
-    background:var(--card2);border:none;color:var(--sub);
-    width:30px;height:30px;border-radius:50%;font-size:15px;
-    display:flex;align-items:center;justify-content:center;flex-shrink:0;
-  }
-  .wc-week{
-    display:flex;gap:4px;overflow-x:auto;
-    padding-top:8px;
-    border-top:1px solid var(--border);
-  }
-  .wc-week .day{
-    flex:1 0 auto;min-width:36px;text-align:center;
+  .ws-day .ws-icon{font-size:20px;line-height:1;}
+  .ws-day .ws-temp{
     font-size:10px;color:var(--sub);
+    margin-top:3px;white-space:nowrap;
   }
-  .wc-week .day .dname{margin-bottom:2px;font-weight:700;}
-  .wc-week .day .dicon{font-size:15px;}
-  .wc-week .day .dtemp{font-size:10px;color:var(--text);margin-top:2px;white-space:nowrap;}
+  .ws-reload{
+    background:none;border:none;color:var(--sub);
+    font-size:14px;padding:4px 6px;flex-shrink:0;opacity:.6;
+  }
 
   /* banner */
   .banner{
@@ -622,19 +613,10 @@
   <div class="page" id="pageHome">
     <div class="wrap">
 
-      <!-- weather card -->
-      <div class="weather-card" id="weatherBox">
-        <div class="wc-main">
-          <div class="wc-left">
-            <span class="wc-icon" id="wIcon">🌥️</span>
-            <div>
-              <span class="wc-temp" id="wTemp">--℃</span>
-              <span class="wc-place" id="wPlace">取得中...</span>
-            </div>
-          </div>
-          <button class="wc-reload" id="wReload" title="更新">↻</button>
-        </div>
-        <div class="wc-week" id="weatherWeek"></div>
+      <!-- weekly weather strip -->
+      <div class="weather-strip" id="weatherBox">
+        <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
+        <button class="ws-reload" id="wReload" title="更新">↻</button>
       </div>
 
       <!-- banner image -->
@@ -1499,13 +1481,9 @@ document.getElementById('searchForm').addEventListener('submit', function(e){
 });
 
 /* ---- weather ---- */
-const wIcon = document.getElementById('wIcon');
-const wTemp = document.getElementById('wTemp');
-const wPlace = document.getElementById('wPlace');
 const wReload = document.getElementById('wReload');
 const weatherWeek = document.getElementById('weatherWeek');
 const weekdayNames = ['日','月','火','水','木','金','土'];
-let currentPlaceName = '';
 
 function weatherEmoji(code){
   if(code === 0) return {icon:'☀️', text:'晴れ'};
@@ -1522,18 +1500,6 @@ function weatherEmoji(code){
   return {icon:'🌡️', text:''};
 }
 
-function fetchPlaceName(lat, lon){
-  const url = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=ja';
-  fetch(url).then(function(r){ return r.json(); }).then(function(d){
-    const place = d.city || d.locality || d.principalSubdivision || '';
-    if(place){
-      currentPlaceName = place;
-      const condition = wPlace.dataset.condition || '';
-      wPlace.textContent = place + (condition ? ' ・ ' + condition : '');
-    }
-  }).catch(function(){});
-}
-
 function renderWeekly(daily){
   weatherWeek.innerHTML = '';
   if(!daily || !daily.time) return;
@@ -1544,18 +1510,18 @@ function renderWeekly(daily){
     const min = Math.round(daily.temperature_2m_min[i]);
 
     const day = document.createElement('div');
-    day.className = 'day';
+    day.className = 'ws-day';
 
     const dname = document.createElement('div');
-    dname.className = 'dname';
+    dname.className = 'ws-name';
     dname.textContent = i === 0 ? '今日' : weekdayNames[d.getDay()];
 
     const dicon = document.createElement('div');
-    dicon.className = 'dicon';
+    dicon.className = 'ws-icon';
     dicon.textContent = w.icon;
 
     const dtemp = document.createElement('div');
-    dtemp.className = 'dtemp';
+    dtemp.className = 'ws-temp';
     dtemp.textContent = max + '°/' + min + '°';
 
     day.appendChild(dname);
@@ -1567,23 +1533,11 @@ function renderWeekly(daily){
 
 function fetchWeather(lat, lon){
   const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon
-    + '&current_weather=true'
     + '&daily=temperature_2m_max,temperature_2m_min,weathercode'
     + '&forecast_days=7&timezone=auto';
   fetch(url).then(function(r){ return r.json(); }).then(function(d){
-    const cw = d.current_weather;
-    if(cw){
-      const w = weatherEmoji(cw.weathercode);
-      wIcon.textContent = w.icon;
-      wTemp.textContent = Math.round(cw.temperature) + '℃';
-      wPlace.dataset.condition = w.text;
-      wPlace.textContent = w.text;
-    }
     renderWeekly(d.daily);
-    fetchPlaceName(lat, lon);
-  }).catch(function(){
-    wPlace.textContent = '天気を取得できませんでした';
-  });
+  }).catch(function(){});
 }
 
 function loadWeather(){
@@ -1593,34 +1547,25 @@ function loadWeather(){
       const c = JSON.parse(cached);
       fetchWeather(c.lat, c.lon);
     }catch(e){}
-  }else{
-    wPlace.textContent = '位置情報を取得中...';
   }
-
   if(navigator.geolocation){
     navigator.geolocation.getCurrentPosition(function(pos){
       const lat = pos.coords.latitude;
       const lon = pos.coords.longitude;
       localStorage.setItem(COORD_KEY, JSON.stringify({lat:lat, lon:lon}));
       fetchWeather(lat, lon);
-    }, function(err){
-      if(!cached){
-        wPlace.textContent = '位置情報が許可されていません';
-        wIcon.textContent = '📍';
-      }
-    });
+    }, function(){});
   }
 }
 
 wReload.addEventListener('click', function(e){
   e.stopPropagation();
-  wPlace.textContent = '更新中...';
   loadWeather();
 });
 
-document.getElementById('weatherBox').addEventListener('click', function(){
-  const q = (currentPlaceName ? currentPlaceName + ' ' : '') + '週間天気';
-  window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
+document.getElementById('weatherBox').addEventListener('click', function(e){
+  if(e.target === wReload || wReload.contains(e.target)) return;
+  window.open('https://www.google.com/search?q=' + encodeURIComponent('週間天気予報'), '_blank');
 });
 
 loadWeather();
