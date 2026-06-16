@@ -1180,26 +1180,21 @@ function getFilteredLinks(){
   });
 }
 
-/* ---- secret swipe gesture on category tabs ---- */
+/* ---- secret: triple tap on weather box ---- */
 (function(){
-  let swipeStartX = 0, swipeStartY = 0, swipeStartTime = 0;
-  const SWIPE_THRESHOLD = 60;  /* px right */
-  const SWIPE_TIME = 350;      /* ms max */
+  let tapCount = 0;
+  let tapTimer = null;
+  const weatherBox = document.getElementById('weatherBox');
 
-  categoryTabsEl.addEventListener('touchstart', function(e){
-    swipeStartX = e.touches[0].clientX;
-    swipeStartY = e.touches[0].clientY;
-    swipeStartTime = Date.now();
-  }, {passive:true});
-
-  categoryTabsEl.addEventListener('touchend', function(e){
-    const dx = e.changedTouches[0].clientX - swipeStartX;
-    const dy = e.changedTouches[0].clientY - swipeStartY;
-    const dt = Date.now() - swipeStartTime;
-    /* left-to-right, fast, mostly horizontal */
-    if(dx > SWIPE_THRESHOLD && Math.abs(dy) < 40 && dt < SWIPE_TIME){
+  weatherBox.addEventListener('click', function(e){
+    if(e.target === wReload || wReload.contains(e.target)) return;
+    tapCount++;
+    clearTimeout(tapTimer);
+    tapTimer = setTimeout(function(){ tapCount = 0; }, 600);
+    if(tapCount >= 3){
+      tapCount = 0;
+      clearTimeout(tapTimer);
       secretMode = !secretMode;
-      /* reset currentCategory to avoid stale selection */
       const cats = getOrderedCategories();
       const newVisible = cats.filter(function(cat){
         return secretMode ? isSecretCategory(cat) : !isSecretCategory(cat);
@@ -1207,11 +1202,11 @@ function getFilteredLinks(){
       if(newVisible.length) currentCategory = newVisible[0];
       renderCategoryTabs();
       renderBannerLinks();
-      /* brief visual feedback */
-      categoryTabsEl.style.opacity = '0.5';
-      setTimeout(function(){ categoryTabsEl.style.opacity = '1'; }, 150);
+      /* subtle flash feedback */
+      weatherBox.style.opacity = '0.3';
+      setTimeout(function(){ weatherBox.style.opacity = '1'; }, 200);
     }
-  }, {passive:true});
+  });
 })();
 
 function renderCategoryOrderList(){
@@ -1781,11 +1776,6 @@ function loadWeather(){
 wReload.addEventListener('click', function(e){
   e.stopPropagation();
   loadWeather();
-});
-
-document.getElementById('weatherBox').addEventListener('click', function(e){
-  if(e.target === wReload || wReload.contains(e.target)) return;
-  window.open('https://www.google.com/search?q=' + encodeURIComponent('週間天気予報'), '_blank');
 });
 
 loadWeather();
