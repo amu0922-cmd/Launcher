@@ -516,6 +516,14 @@
   }
   .banner-link-card img{
     width:100%;height:100%;object-fit:cover;display:block;
+    pointer-events:none;
+    -webkit-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+  }
+  .banner-link-card{
+    -webkit-touch-callout:none;
+    -webkit-user-select:none;
+    user-select:none;
   }
   .banner-link-overlay{
     position:absolute;inset:0;
@@ -1272,6 +1280,8 @@ function makeLinkCard(item){
     openLinkEdit(item.id);
   });
   card.appendChild(editBtn);
+
+  card.addEventListener('contextmenu', function(e){ e.preventDefault(); });
 
   /* tap = open link / long press = drag */
   card.addEventListener('touchstart', function(e){
