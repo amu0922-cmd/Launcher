@@ -802,6 +802,28 @@
     background:var(--accent);color:#fff;border:none;
     border-radius:12px;padding:12px 20px;font-size:14px;font-weight:700;
   }
+  .browser-action-btn{
+    width:34px;height:34px;border-radius:50%;border:none;
+    background:var(--card2);color:var(--text);font-size:16px;flex-shrink:0;
+  }
+  .browser-action-btn.starred{ color:#f5a623; }
+  .browser-menu-panel{
+    position:absolute;top:calc(env(safe-area-inset-top) + 90px);right:8px;
+    background:var(--card);
+    border-radius:14px;
+    box-shadow:0 4px 20px rgba(0,0,0,.18);
+    overflow:hidden;
+    z-index:50;
+    min-width:200px;
+  }
+  .bmenu-item{
+    display:block;width:100%;text-align:left;
+    padding:14px 18px;border:none;
+    background:transparent;color:var(--text);font-size:14px;
+    border-bottom:1px solid var(--border);
+  }
+  .bmenu-item:last-child{border-bottom:none;}
+  .bmenu-item:active{background:var(--card2);}
 </style>
 </head>
 <body>
@@ -866,11 +888,20 @@
         <input type="url" id="browserUrlInput" placeholder="URLを入力">
       </div>
       <button class="browser-go" id="browserGo">移動</button>
+      <button class="browser-action-btn" id="browserBookmarkBtn" title="お気に入り">☆</button>
+      <button class="browser-action-btn" id="browserMenuBtn" title="メニュー">⋮</button>
     </div>
     <div class="browser-tabs-bar" id="browserTabsBar">
       <button class="btab-add" id="browserNewTab">＋</button>
     </div>
     <div class="browser-frame-wrap" id="browserFrameWrap"></div>
+
+    <!-- browser action menu -->
+    <div class="browser-menu-panel" id="browserMenuPanel" style="display:none;">
+      <button class="bmenu-item" id="bmenuPdf">📄 PDFとして保存</button>
+      <button class="bmenu-item" id="bmenuCloseAll">✕ タブを全て閉じる</button>
+      <button class="bmenu-item" id="bmenuExternal">🌐 外部ブラウザで開く</button>
+    </div>
   </div>
 
 </div><!-- end pager-inner -->
@@ -1873,13 +1904,6 @@ function showFrame(tab){
     });
     browserFrameWrap.appendChild(iframe);
     tab.iframe = iframe;
-
-    /* detect X-Frame-Options block via timeout */
-    setTimeout(function(){
-      try{
-        if(iframe.contentDocument === null){ showBlocked(tab); }
-      }catch(e){ showBlocked(tab); }
-    }, 3000);
   }else{
     tab.iframe.style.display = '';
   }
@@ -1904,6 +1928,7 @@ function switchTab(id){
   const tab = btabs.find(function(t){ return t.id === id; });
   renderBrowserTabs();
   showFrame(tab || null);
+  if(typeof updateBookmarkBtn === 'function') updateBookmarkBtn();
 }
 
 function openNewTab(url){
@@ -1958,6 +1983,59 @@ browserBack.addEventListener('click', function(){
   goToSection('home');
 });
 browserNewTab.addEventListener('click', function(){ openNewTab(''); });
+
+/* bookmark button */
+const browserBookmarkBtn = document.getElementById('browserBookmarkBtn');
+function updateBookmarkBtn(){
+  const tab = btabs.find(function(t){ return t.id === activeTabId; });
+  const url = tab && tab.url;
+  if(!url){ browserBookmarkBtn.textContent = '☆'; browserBookmarkBtn.classList.remove('starred'); return; }
+  const favs = loadFavorites();
+  const starred = favs.some(function(f){ return f.link === url; });
+  browserBookmarkBtn.textContent = starred ? '⭐' : '☆';
+  browserBookmarkBtn.classList.toggle('starred', starred);
+}
+browserBookmarkBtn.addEventListener('click', function(){
+  const tab = btabs.find(function(t){ return t.id === activeTabId; });
+  if(!tab || !tab.url) return;
+  toggleFavorite({ link: tab.url, title: tab.title || tab.url, pubDate: new Date().toISOString(), source: '' });
+  updateBookmarkBtn();
+});
+
+/* menu panel */
+const browserMenuPanel = document.getElementById('browserMenuPanel');
+const browserMenuBtn = document.getElementById('browserMenuBtn');
+browserMenuBtn.addEventListener('click', function(e){
+  e.stopPropagation();
+  browserMenuPanel.style.display = browserMenuPanel.style.display === 'none' ? '' : 'none';
+});
+document.addEventListener('click', function(){
+  browserMenuPanel.style.display = 'none';
+});
+
+document.getElementById('bmenuPdf').addEventListener('click', function(){
+  browserMenuPanel.style.display = 'none';
+  const tab = btabs.find(function(t){ return t.id === activeTabId; });
+  if(!tab || !tab.url){ alert('ページが読み込まれていません'); return; }
+  window.open('https://docs.google.com/viewerng/viewer?url=' + encodeURIComponent(tab.url) + '&embedded=true', '_blank');
+});
+
+document.getElementById('bmenuCloseAll').addEventListener('click', function(){
+  browserMenuPanel.style.display = 'none';
+  btabs.forEach(function(tab){ if(tab.iframe) tab.iframe.remove(); });
+  btabs = [];
+  activeTabId = null;
+  browserFrameWrap.innerHTML = '';
+  browserUrlInput.value = '';
+  renderBrowserTabs();
+  goToSection('home');
+});
+
+document.getElementById('bmenuExternal').addEventListener('click', function(){
+  browserMenuPanel.style.display = 'none';
+  const tab = btabs.find(function(t){ return t.id === activeTabId; });
+  if(tab && tab.url) window.open(tab.url, '_blank');
+});
 
 /* expose so link cards can open in browser */
 function openInBrowser(url){
