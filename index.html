@@ -2107,13 +2107,33 @@ function updateBookmarkBtn(){
   browserBookmarkBtn.textContent = starred ? '⭐' : '☆';
   browserBookmarkBtn.classList.toggle('starred', starred);
 }
-browserBookmarkBtn.addEventListener('click', function(){
+browserBookmarkBtn.addEventListener('click', async function(){
   const tab = btabs.find(function(t){ return t.id === activeTabId; });
   if(!tab || !tab.url){
     openBmPanel('fav');
     return;
   }
-  toggleFavorite({ link: tab.url, title: tab.title || tab.url, pubDate: new Date().toISOString(), source: '' });
+  const favs = loadFavorites();
+  const already = favs.some(function(f){ return f.link === tab.url; });
+  if(already){
+    /* already bookmarked → remove */
+    toggleFavorite({ link: tab.url, title: tab.title || tab.url, pubDate: new Date().toISOString(), source: '' });
+    updateBookmarkBtn();
+    return;
+  }
+  /* add with title fetch */
+  browserBookmarkBtn.textContent = '⏳';
+  let title = tab.title || '';
+  if(!title){
+    try{
+      const meta = await fetchLinkMeta(tab.url);
+      if(meta && meta.title) title = meta.title;
+    }catch(e){}
+  }
+  if(!title) title = tab.url;
+  tab.title = title;
+  renderBrowserTabs();
+  toggleFavorite({ link: tab.url, title: title, pubDate: new Date().toISOString(), source: '' });
   updateBookmarkBtn();
 });
 
