@@ -1641,6 +1641,8 @@ const sections = {
 };
 let currentSection = 'home';
 
+const weatherBoxEl = document.getElementById('weatherBox');
+
 function goToSection(key){
   currentSection = key;
   Object.keys(sections).forEach(function(k){
@@ -1649,6 +1651,7 @@ function goToSection(key){
   document.querySelectorAll('.section-tab').forEach(function(btn){
     btn.classList.toggle('active', btn.dataset.sec === key);
   });
+  weatherBoxEl.style.display = key === 'home' ? '' : 'none';
   if(key === 'fav') renderFavorites();
   if(key === 'feed' && !document.getElementById('feedList').children.length) loadFeed();
 }
