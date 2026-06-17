@@ -1051,6 +1051,7 @@
         <button class="section-tab active" data-sec="home">🏠 ホーム</button>
         <button class="section-tab" data-sec="feed">📰 フィード</button>
         <div class="section-tab-actions">
+          <span id="syncIndicator" style="font-size:10px;color:var(--sub);padding:0 4px;"></span>
           <button class="stab-btn" id="themeBtn" title="テーマ">🌙</button>
           <button class="stab-btn" id="refreshBtn" title="更新">🔄</button>
           <button class="stab-btn" id="settingsBtn" title="設定">⚙️</button>
@@ -1273,6 +1274,83 @@
 </div>
 
 <script>
+/* ---- Supabase cloud sync ---- */
+const SB_URL = 'https://lttrqfbwhyktypddgtpn.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx0dHJxZmJ3aHlrdHlwZGRndHBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjY1MDMsImV4cCI6MjA5NTgwMjUwM30.SKn7Okr9UGR5jKapPmD3IAoVW_NThZL4FoXl09wkgCU';
+const SB_HEADERS = { 'Content-Type': 'application/json', 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY };
+
+/* keys to sync to cloud (heavy image data stays local) */
+const CLOUD_SYNC_KEYS = [
+  'launcherApps', 'launcherFeeds', 'launcherBannerLinks',
+  'launcherBannerCategory', 'launcherCategoryOrder',
+  'launcherBrowserTabs', 'launcherFavorites', 'launcherReadLater',
+  'launcherTheme', 'launcherBackground', 'launcherBanner'
+];
+
+let syncDebounceTimer = null;
+
+async function sbSet(key, value){
+  try{
+    await fetch(SB_URL + '/rest/v1/launcher_data', {
+      method: 'POST',
+      headers: { ...SB_HEADERS, 'Prefer': 'resolution=merge-duplicates' },
+      body: JSON.stringify({ key, value, updated_at: new Date().toISOString() })
+    });
+  }catch(e){}
+}
+
+async function sbGet(key){
+  try{
+    const res = await fetch(SB_URL + '/rest/v1/launcher_data?key=eq.' + encodeURIComponent(key) + '&select=value', {
+      headers: SB_HEADERS
+    });
+    const data = await res.json();
+    return data && data[0] ? data[0].value : null;
+  }catch(e){ return null; }
+}
+
+async function cloudSaveAll(){
+  const promises = CLOUD_SYNC_KEYS.map(function(key){
+    const val = localStorage.getItem(key);
+    if(val !== null) return sbSet(key, val);
+  }).filter(Boolean);
+  await Promise.all(promises);
+}
+
+async function cloudLoadAll(){
+  const indicator = document.getElementById('syncIndicator');
+  if(indicator) indicator.textContent = '☁️ 同期中...';
+  try{
+    const res = await fetch(SB_URL + '/rest/v1/launcher_data?key=in.(' + CLOUD_SYNC_KEYS.map(function(k){ return '"' + k + '"'; }).join(',') + ')&select=key,value', {
+      headers: SB_HEADERS
+    });
+    const data = await res.json();
+    if(Array.isArray(data) && data.length){
+      data.forEach(function(row){
+        if(row.value !== null) localStorage.setItem(row.key, row.value);
+      });
+      if(indicator) indicator.textContent = '✓ 同期済み';
+      setTimeout(function(){ if(indicator) indicator.textContent = ''; }, 2000);
+      return true;
+    }
+  }catch(e){}
+  if(indicator) indicator.textContent = '';
+  return false;
+}
+
+/* debounced save — waits 2s after last change before saving */
+function schedulCloudSave(){
+  clearTimeout(syncDebounceTimer);
+  syncDebounceTimer = setTimeout(cloudSaveAll, 2000);
+}
+
+/* patch localStorage.setItem to auto-sync on changes */
+const _origSetItem = localStorage.setItem.bind(localStorage);
+localStorage.setItem = function(key, value){
+  _origSetItem(key, value);
+  if(CLOUD_SYNC_KEYS.indexOf(key) !== -1) schedulCloudSave();
+};
+
 const STORAGE_KEY = 'launcherApps';
 const COORD_KEY = 'launcherCoords';
 const BANNER_KEY = 'launcherBanner';
@@ -2052,6 +2130,26 @@ document.getElementById('linkDelete').addEventListener('click', function(){
 
 renderCategoryTabs();
 renderBannerLinks();
+
+/* ---- cloud sync on startup ---- */
+cloudLoadAll().then(function(loaded){
+  if(loaded){
+    /* re-render with cloud data */
+    apps = loadApps();
+    bannerLinks = loadBannerLinks();
+    currentCategory = localStorage.getItem(CATEGORY_KEY) || bannerLinks.length ? currentCategory : '';
+    renderCategoryTabs();
+    renderBannerLinks();
+    renderFavorites();
+    renderReadLater();
+    applyBanner();
+    applyBackground();
+    applyTheme();
+    /* restore browser tabs */
+    btabs = [];
+    loadTabsFromStorage();
+  }
+});
 
 /* ---- theme toggle ---- */
 const THEME_KEY = 'launcherTheme';
