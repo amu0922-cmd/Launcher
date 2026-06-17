@@ -2348,6 +2348,29 @@ function renderTabGrid(){
     try{ ph.textContent = tab.url ? new URL(tab.url).hostname : '新しいタブ'; }catch(e){ ph.textContent = tab.url || '新しいタブ'; }
     thumb.appendChild(ph);
 
+    /* fetch thumbnail via microlink if not cached */
+    if(tab.url){
+      if(tab.thumbUrl){
+        /* already fetched */
+        const img = document.createElement('img');
+        img.src = tab.thumbUrl;
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;';
+        thumb.style.position = 'relative';
+        thumb.appendChild(img);
+      }else{
+        fetchLinkMeta(tab.url).then(function(meta){
+          if(meta && meta.image){
+            tab.thumbUrl = meta.image;
+            const img = document.createElement('img');
+            img.src = meta.image;
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;';
+            thumb.style.position = 'relative';
+            thumb.appendChild(img);
+          }
+        }).catch(function(){});
+      }
+    }
+
     const info = document.createElement('div');
     info.className = 'tab-grid-info';
 
