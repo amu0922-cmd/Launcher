@@ -777,10 +777,20 @@
     flex-shrink:0;white-space:nowrap;max-width:130px;
   }
   .btab.active{background:var(--accent);color:#fff;}
+  .btab.pinned{
+    border:1.5px solid var(--accent);
+    padding-left:8px;
+  }
+  .btab.pinned .btab-pin{color:var(--accent);}
   .btab .btab-close{
     background:none;border:none;color:inherit;
     font-size:14px;padding:0;line-height:1;flex-shrink:0;
     opacity:.7;
+  }
+  .btab .btab-pin{
+    background:none;border:none;color:inherit;
+    font-size:11px;padding:0;line-height:1;flex-shrink:0;
+    opacity:.6;
   }
   .btab-add{
     width:30px;height:30px;border-radius:50%;
@@ -955,6 +965,7 @@
     <!-- browser action menu -->
     <div class="browser-menu-panel" id="browserMenuPanel" style="display:none;">
       <button class="bmenu-item" id="bmenuBookmarks">⭐ ブックマーク・あとで読む</button>
+      <button class="bmenu-item" id="bmenuHistory">🕐 履歴</button>
       <button class="bmenu-item" id="bmenuPdf">📄 PDFとして保存</button>
       <button class="bmenu-item" id="bmenuCloseAll">✕ タブを全て閉じる</button>
       <button class="bmenu-item" id="bmenuExternal">🌐 外部ブラウザで開く</button>
@@ -969,6 +980,7 @@
       <div class="bm-tabs">
         <button class="bm-tab active" data-bm="fav">⭐ お気に入り</button>
         <button class="bm-tab" data-bm="later">🕐 あとで読む</button>
+        <button class="bm-tab" data-bm="history">📋 履歴</button>
       </div>
       <div class="bm-list" id="bmFavList"></div>
       <div class="bm-list" id="bmLaterList" style="display:none;">
@@ -978,6 +990,7 @@
         </div>
         <div id="bmLaterItems"></div>
       </div>
+      <div class="bm-list" id="bmHistoryList" style="display:none;"></div>
     </div>
   </div>
 
@@ -1945,24 +1958,42 @@ function normalizeUrl(raw){
 
 function renderBrowserTabs(){
   browserTabsBar.innerHTML = '';
-  btabs.forEach(function(tab){
+  /* pinned first, then unpinned */
+  const sorted = btabs.slice().sort(function(a, b){
+    return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+  });
+  sorted.forEach(function(tab){
     const btn = document.createElement('button');
-    btn.className = 'btab' + (tab.id === activeTabId ? ' active' : '');
+    btn.className = 'btab' + (tab.id === activeTabId ? ' active' : '') + (tab.pinned ? ' pinned' : '');
 
-    const label = document.createElement('span');
-    label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;';
-    label.textContent = tab.title || tab.url || '新しいタブ';
-
-    const closeBtn = document.createElement('button');
-    closeBtn.className = 'btab-close';
-    closeBtn.textContent = '✕';
-    closeBtn.addEventListener('click', function(e){
+    const pinBtn = document.createElement('button');
+    pinBtn.className = 'btab-pin';
+    pinBtn.textContent = tab.pinned ? '📌' : '📍';
+    pinBtn.title = tab.pinned ? '固定解除' : 'タブを固定';
+    pinBtn.addEventListener('click', function(e){
       e.stopPropagation();
-      closeTab(tab.id);
+      tab.pinned = !tab.pinned;
+      renderBrowserTabs();
     });
 
+    const label = document.createElement('span');
+    label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;';
+    label.textContent = tab.title || tab.url || '新しいタブ';
+
+    btn.appendChild(pinBtn);
     btn.appendChild(label);
-    btn.appendChild(closeBtn);
+
+    if(!tab.pinned){
+      const closeBtn = document.createElement('button');
+      closeBtn.className = 'btab-close';
+      closeBtn.textContent = '✕';
+      closeBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        closeTab(tab.id);
+      });
+      btn.appendChild(closeBtn);
+    }
+
     btn.addEventListener('click', function(){ switchTab(tab.id); });
     browserTabsBar.appendChild(btn);
   });
@@ -2045,6 +2076,7 @@ function closeTab(id){
   const idx = btabs.findIndex(function(t){ return t.id === id; });
   if(idx === -1) return;
   const tab = btabs[idx];
+  if(tab.pinned) return; /* cannot close pinned tab */
   if(tab.iframe) tab.iframe.remove();
   btabs.splice(idx, 1);
   if(btabs.length === 0){
@@ -2074,6 +2106,11 @@ function browserNavigate(url){
   browserFrameWrap.querySelectorAll('.browser-blocked').forEach(function(el){ el.remove(); });
   renderBrowserTabs();
   showFrame(tab);
+  addHistory(url, '');
+  /* try to update history title after load */
+  setTimeout(function(){
+    if(tab.title) addHistory(url, tab.title);
+  }, 3000);
 }
 
 browserGo.addEventListener('click', function(){
@@ -2148,6 +2185,11 @@ document.addEventListener('click', function(){
   browserMenuPanel.style.display = 'none';
 });
 
+document.getElementById('bmenuHistory').addEventListener('click', function(){
+  browserMenuPanel.style.display = 'none';
+  openBmPanel('history');
+});
+
 document.getElementById('bmenuBookmarks').addEventListener('click', function(){
   browserMenuPanel.style.display = 'none';
   openBmPanel('fav');
@@ -2173,6 +2215,27 @@ document.querySelectorAll('.bm-tab').forEach(function(btn){
   btn.addEventListener('click', function(){ switchBmTab(btn.dataset.bm); });
 });
 
+const HISTORY_KEY = 'launcherBrowserHistory';
+const HISTORY_MAX = 200;
+
+function loadHistory(){
+  const raw = localStorage.getItem(HISTORY_KEY);
+  if(!raw) return [];
+  try{ const a = JSON.parse(raw); return Array.isArray(a) ? a : []; }catch(e){ return []; }
+}
+function saveHistory(items){
+  try{ localStorage.setItem(HISTORY_KEY, JSON.stringify(items)); }catch(e){}
+}
+function addHistory(url, title){
+  if(!url) return;
+  let items = loadHistory();
+  /* remove duplicate */
+  items = items.filter(function(h){ return h.url !== url; });
+  items.unshift({ url: url, title: title || url, visitedAt: new Date().toISOString() });
+  if(items.length > HISTORY_MAX) items = items.slice(0, HISTORY_MAX);
+  saveHistory(items);
+}
+
 function switchBmTab(tab){
   currentBmTab = tab;
   document.querySelectorAll('.bm-tab').forEach(function(b){
@@ -2180,8 +2243,57 @@ function switchBmTab(tab){
   });
   bmFavList.style.display = tab === 'fav' ? '' : 'none';
   document.getElementById('bmLaterList').style.display = tab === 'later' ? '' : 'none';
+  document.getElementById('bmHistoryList').style.display = tab === 'history' ? '' : 'none';
   if(tab === 'fav') renderBmFavs();
-  else renderBmLater();
+  else if(tab === 'later') renderBmLater();
+  else if(tab === 'history') renderBmHistory();
+}
+
+function renderBmHistory(){
+  const list = document.getElementById('bmHistoryList');
+  list.innerHTML = '';
+
+  /* clear button at top */
+  const clearRow = document.createElement('div');
+  clearRow.style.cssText = 'display:flex;justify-content:flex-end;padding:8px 16px;';
+  const clearBtn = document.createElement('button');
+  clearBtn.textContent = '🗑️ 履歴を全て削除';
+  clearBtn.style.cssText = 'background:none;border:none;color:var(--sub);font-size:12px;';
+  clearBtn.addEventListener('click', function(){
+    localStorage.removeItem(HISTORY_KEY);
+    renderBmHistory();
+  });
+  clearRow.appendChild(clearBtn);
+  list.appendChild(clearRow);
+
+  const items = loadHistory();
+  if(!items.length){
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:20px;text-align:center;color:var(--sub);font-size:13px;';
+    empty.textContent = '履歴はまだありません';
+    list.appendChild(empty);
+    return;
+  }
+
+  let lastDate = '';
+  items.forEach(function(item){
+    /* date separator */
+    const d = new Date(item.visitedAt);
+    const dateStr = isNaN(d) ? '' : d.toLocaleDateString('ja-JP', {month:'numeric', day:'numeric', weekday:'short'});
+    if(dateStr && dateStr !== lastDate){
+      lastDate = dateStr;
+      const sep = document.createElement('div');
+      sep.style.cssText = 'padding:6px 16px;font-size:11px;font-weight:700;color:var(--sub);background:var(--card2);';
+      sep.textContent = dateStr;
+      list.appendChild(sep);
+    }
+
+    const row = makeBmRow(item.title, item.url, function(){
+      const updated = loadHistory().filter(function(h){ return h.url !== item.url; });
+      saveHistory(updated); renderBmHistory();
+    });
+    list.appendChild(row);
+  });
 }
 
 function renderBmFavs(){
@@ -2269,13 +2381,18 @@ document.getElementById('bmenuPdf').addEventListener('click', function(){
 
 document.getElementById('bmenuCloseAll').addEventListener('click', function(){
   browserMenuPanel.style.display = 'none';
-  btabs.forEach(function(tab){ if(tab.iframe) tab.iframe.remove(); });
-  btabs = [];
-  activeTabId = null;
-  browserFrameWrap.innerHTML = '';
-  browserUrlInput.value = '';
-  renderBrowserTabs();
-  goToSection('home');
+  /* remove unpinned tabs only */
+  btabs.forEach(function(tab){ if(!tab.pinned && tab.iframe) tab.iframe.remove(); });
+  btabs = btabs.filter(function(tab){ return tab.pinned; });
+  if(btabs.length === 0){
+    activeTabId = null;
+    renderBrowserTabs();
+    browserFrameWrap.innerHTML = '';
+    browserUrlInput.value = '';
+    goToSection('home');
+  }else{
+    switchTab(btabs[0].id);
+  }
 });
 
 document.getElementById('bmenuExternal').addEventListener('click', function(){
