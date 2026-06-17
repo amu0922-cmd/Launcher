@@ -2347,24 +2347,30 @@ function showFrame(tab){
     iframe.setAttribute('allow', 'fullscreen; screen-orientation; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
     iframe.src = tab.url;
     iframe.addEventListener('load', function(){
+      const t2 = btabs.find(function(t){ return t.id === tab.id; });
+      if(!t2 || !t2.url) return;
+
+      /* record history on every page load */
+      addHistory(t2.url, t2.title || '');
+
       /* try same-origin title first */
       try{
-        const t2 = btabs.find(function(t){ return t.id === tab.id; });
-        if(t2){
-          const sameOriginTitle = iframe.contentDocument && iframe.contentDocument.title;
-          if(sameOriginTitle){
-            t2.title = sameOriginTitle;
-            renderBrowserTabs();
-            return;
-          }
+        const sameOriginTitle = iframe.contentDocument && iframe.contentDocument.title;
+        if(sameOriginTitle){
+          t2.title = sameOriginTitle;
+          addHistory(t2.url, sameOriginTitle);
+          renderBrowserTabs();
+          saveTabs();
+          return;
         }
       }catch(e){}
-      /* cross-origin: use microlink */
-      const t2 = btabs.find(function(t){ return t.id === tab.id; });
-      if(t2 && !t2.title && t2.url){
+
+      /* cross-origin: use microlink for title */
+      if(!t2.title){
         fetchLinkMeta(t2.url).then(function(meta){
-          if(meta && meta.title && !t2.title){
+          if(meta && meta.title){
             t2.title = meta.title;
+            addHistory(t2.url, meta.title);
             renderBrowserTabs();
             saveTabs();
           }
