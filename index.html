@@ -1943,8 +1943,39 @@ const browserBack = document.getElementById('browserBack');
 const browserGo = document.getElementById('browserGo');
 const browserNewTab = document.getElementById('browserNewTab');
 
-let btabs = [];    /* [{id, url, title, iframe}] */
+const TABS_KEY = 'launcherBrowserTabs';
+
+function saveTabs(){
+  try{
+    const data = btabs.map(function(t){
+      return { id: t.id, url: t.url, title: t.title, pinned: t.pinned || false };
+    });
+    localStorage.setItem(TABS_KEY, JSON.stringify({ tabs: data, activeId: activeTabId }));
+  }catch(e){}
+}
+
+function loadTabsFromStorage(){
+  try{
+    const raw = localStorage.getItem(TABS_KEY);
+    if(!raw) return;
+    const data = JSON.parse(raw);
+    if(!data || !Array.isArray(data.tabs)) return;
+    data.tabs.forEach(function(t){
+      if(!t.url) return;
+      btabs.push({ id: t.id, url: t.url, title: t.title || '', pinned: t.pinned || false, iframe: null });
+    });
+    if(btabs.length){
+      const restoreId = data.activeId && btabs.find(function(t){ return t.id === data.activeId; }) ? data.activeId : btabs[0].id;
+      /* don't auto-open browser, just keep tabs ready */
+      activeTabId = restoreId;
+      renderBrowserTabs();
+    }
+  }catch(e){}
+}
+
+let btabs = [];
 let activeTabId = null;
+loadTabsFromStorage();
 
 function normalizeUrl(raw){
   raw = raw.trim();
@@ -1973,6 +2004,7 @@ function renderBrowserTabs(){
     pinBtn.addEventListener('click', function(e){
       e.stopPropagation();
       tab.pinned = !tab.pinned;
+      saveTabs();
       renderBrowserTabs();
     });
 
@@ -2022,16 +2054,34 @@ function showFrame(tab){
   if(!tab.iframe){
     const iframe = document.createElement('iframe');
     iframe.className = 'browser-iframe';
-    iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation';
+    iframe.sandbox = 'allow-scripts allow-same-origin allow-forms allow-popups allow-top-navigation-by-user-activation allow-presentation';
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('allow', 'fullscreen; screen-orientation; accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
     iframe.src = tab.url;
     iframe.addEventListener('load', function(){
+      /* try same-origin title first */
       try{
         const t2 = btabs.find(function(t){ return t.id === tab.id; });
-        if(t2 && !t2.title){
-          t2.title = iframe.contentDocument && iframe.contentDocument.title || '';
-          renderBrowserTabs();
+        if(t2){
+          const sameOriginTitle = iframe.contentDocument && iframe.contentDocument.title;
+          if(sameOriginTitle){
+            t2.title = sameOriginTitle;
+            renderBrowserTabs();
+            return;
+          }
         }
       }catch(e){}
+      /* cross-origin: use microlink */
+      const t2 = btabs.find(function(t){ return t.id === tab.id; });
+      if(t2 && !t2.title && t2.url){
+        fetchLinkMeta(t2.url).then(function(meta){
+          if(meta && meta.title && !t2.title){
+            t2.title = meta.title;
+            renderBrowserTabs();
+            saveTabs();
+          }
+        }).catch(function(){});
+      }
     });
     iframe.addEventListener('error', function(){
       showBlocked(tab);
@@ -2063,6 +2113,7 @@ function switchTab(id){
   renderBrowserTabs();
   showFrame(tab || null);
   if(typeof updateBookmarkBtn === 'function') updateBookmarkBtn();
+  saveTabs();
 }
 
 function openNewTab(url){
@@ -2070,15 +2121,17 @@ function openNewTab(url){
   const tab = { id: id, url: normalizeUrl(url), title: '', iframe: null };
   btabs.push(tab);
   switchTab(id);
+  saveTabs();
 }
 
 function closeTab(id){
   const idx = btabs.findIndex(function(t){ return t.id === id; });
   if(idx === -1) return;
   const tab = btabs[idx];
-  if(tab.pinned) return; /* cannot close pinned tab */
+  if(tab.pinned) return;
   if(tab.iframe) tab.iframe.remove();
   btabs.splice(idx, 1);
+  saveTabs();
   if(btabs.length === 0){
     activeTabId = null;
     renderBrowserTabs();
@@ -2107,6 +2160,7 @@ function browserNavigate(url){
   renderBrowserTabs();
   showFrame(tab);
   addHistory(url, '');
+  saveTabs();
   /* try to update history title after load */
   setTimeout(function(){
     if(tab.title) addHistory(url, tab.title);
@@ -2384,6 +2438,7 @@ document.getElementById('bmenuCloseAll').addEventListener('click', function(){
   /* remove unpinned tabs only */
   btabs.forEach(function(tab){ if(!tab.pinned && tab.iframe) tab.iframe.remove(); });
   btabs = btabs.filter(function(tab){ return tab.pinned; });
+  saveTabs();
   if(btabs.length === 0){
     activeTabId = null;
     renderBrowserTabs();
