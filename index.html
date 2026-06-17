@@ -904,6 +904,33 @@
   }
   .bmenu-item:last-child{border-bottom:none;}
   .bmenu-item:active{background:var(--card2);}
+  .bmenu-divider{height:1px;background:var(--border);margin:4px 0;}
+  .bmenu-tabs-head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:10px 16px 6px;
+    font-size:12px;font-weight:800;color:var(--sub);letter-spacing:.04em;
+  }
+  .bmenu-new-tab{
+    background:var(--accent);color:#fff;border:none;
+    border-radius:999px;padding:4px 12px;font-size:12px;font-weight:700;
+  }
+  .bmenu-tab-row{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 16px;border-bottom:1px solid var(--border);
+    cursor:pointer;
+  }
+  .bmenu-tab-row:active{background:var(--card2);}
+  .bmenu-tab-row.active-tab{ background:rgba(236,68,100,.06); }
+  .bmenu-tab-favicon{
+    width:20px;height:20px;border-radius:4px;
+    background:var(--card2);flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:800;color:var(--accent);overflow:hidden;
+  }
+  .bmenu-tab-favicon img{width:100%;height:100%;object-fit:cover;}
+  .bmenu-tab-title{flex:1;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .bmenu-tab-pin{background:none;border:none;font-size:12px;color:var(--sub);padding:0 4px;flex-shrink:0;}
+  .bmenu-tab-close{background:none;border:none;font-size:14px;color:var(--sub);padding:0 4px;flex-shrink:0;}
 
   /* bookmark panel */
   .bm-panel{
@@ -1020,28 +1047,21 @@
         <input type="url" id="browserUrlInput" placeholder="URLを入力">
       </div>
       <button class="browser-go" id="browserGo">移動</button>
-      <button class="browser-action-btn" id="browserTabsBtn" title="タブ一覧">⊞</button>
       <button class="browser-action-btn" id="browserReloadBtn" title="更新">🔄</button>
       <button class="browser-action-btn" id="browserBookmarkBtn" title="お気に入り">☆</button>
       <button class="browser-action-btn" id="browserMenuBtn" title="メニュー">⋮</button>
     </div>
-    <div class="browser-tabs-bar" id="browserTabsBar">
-      <button class="btab-add" id="browserNewTab">＋</button>
-    </div>
     <div class="browser-frame-wrap" id="browserFrameWrap"></div>
-
-    <!-- tab grid overlay -->
-    <div class="tab-grid-panel" id="tabGridPanel" style="display:none;">
-      <div class="tab-grid-head">
-        <span id="tabGridCount">0 タブ</span>
-        <button class="btab-add" id="tabGridNewTab" style="width:32px;height:32px;border-radius:50%;font-size:18px;">＋</button>
-        <button class="bm-close" id="tabGridClose">✕</button>
-      </div>
-      <div class="tab-grid" id="tabGrid"></div>
-    </div>
 
     <!-- browser action menu -->
     <div class="browser-menu-panel" id="browserMenuPanel" style="display:none;">
+      <!-- tabs section -->
+      <div class="bmenu-tabs-head">
+        <span>タブ</span>
+        <button class="bmenu-new-tab" id="bmenuNewTab">＋ 新しいタブ</button>
+      </div>
+      <div id="bmenuTabList"></div>
+      <div class="bmenu-divider"></div>
       <button class="bmenu-item" id="bmenuBookmarks">⭐ ブックマーク・あとで読む</button>
       <button class="bmenu-item" id="bmenuHistory">🕐 履歴</button>
       <button class="bmenu-item" id="bmenuPdf">📄 PDFとして保存</button>
@@ -2014,12 +2034,10 @@ document.querySelectorAll('.section-tab').forEach(function(btn){
 });
 
 /* ---- browser tabs ---- */
-const browserTabsBar = document.getElementById('browserTabsBar');
 const browserFrameWrap = document.getElementById('browserFrameWrap');
 const browserUrlInput = document.getElementById('browserUrlInput');
 const browserBack = document.getElementById('browserBack');
 const browserGo = document.getElementById('browserGo');
-const browserNewTab = document.getElementById('browserNewTab');
 
 const TABS_KEY = 'launcherBrowserTabs';
 
@@ -2044,9 +2062,8 @@ function loadTabsFromStorage(){
     });
     if(btabs.length){
       const restoreId = data.activeId && btabs.find(function(t){ return t.id === data.activeId; }) ? data.activeId : btabs[0].id;
-      /* don't auto-open browser, just keep tabs ready */
       activeTabId = restoreId;
-      renderBrowserTabs();
+      /* renderBrowserTabs called later after DOM ready */
     }
   }catch(e){}
 }
@@ -2066,19 +2083,37 @@ function normalizeUrl(raw){
 }
 
 function renderBrowserTabs(){
-  browserTabsBar.innerHTML = '';
-  /* pinned first, then unpinned */
+  const tabList = document.getElementById('bmenuTabList');
+  if(!tabList) return;
+  tabList.innerHTML = '';
+
   const sorted = btabs.slice().sort(function(a, b){
     return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
   });
+
   sorted.forEach(function(tab){
-    const btn = document.createElement('button');
-    btn.className = 'btab' + (tab.id === activeTabId ? ' active' : '') + (tab.pinned ? ' pinned' : '');
+    const row = document.createElement('div');
+    row.className = 'bmenu-tab-row' + (tab.id === activeTabId ? ' active-tab' : '');
+
+    const favicon = document.createElement('div');
+    favicon.className = 'bmenu-tab-favicon';
+    try{
+      if(tab.url){
+        const img = document.createElement('img');
+        img.src = 'https://www.google.com/s2/favicons?domain=' + new URL(tab.url).hostname + '&sz=32';
+        img.onerror = function(){ favicon.textContent = tab.url ? new URL(tab.url).hostname.charAt(0).toUpperCase() : '?'; };
+        favicon.appendChild(img);
+      }else{ favicon.textContent = '?'; }
+    }catch(e){ favicon.textContent = '?'; }
+
+    const title = document.createElement('div');
+    title.className = 'bmenu-tab-title';
+    title.textContent = tab.title || tab.url || '新しいタブ';
 
     const pinBtn = document.createElement('button');
-    pinBtn.className = 'btab-pin';
+    pinBtn.className = 'bmenu-tab-pin';
     pinBtn.textContent = tab.pinned ? '📌' : '📍';
-    pinBtn.title = tab.pinned ? '固定解除' : 'タブを固定';
+    pinBtn.title = tab.pinned ? '固定解除' : '固定';
     pinBtn.addEventListener('click', function(e){
       e.stopPropagation();
       tab.pinned = !tab.pinned;
@@ -2086,33 +2121,30 @@ function renderBrowserTabs(){
       renderBrowserTabs();
     });
 
-    const label = document.createElement('span');
-    label.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:80px;';
-    label.textContent = tab.title || tab.url || '新しいタブ';
-
-    btn.appendChild(pinBtn);
-    btn.appendChild(label);
+    row.appendChild(favicon);
+    row.appendChild(title);
+    row.appendChild(pinBtn);
 
     if(!tab.pinned){
       const closeBtn = document.createElement('button');
-      closeBtn.className = 'btab-close';
+      closeBtn.className = 'bmenu-tab-close';
       closeBtn.textContent = '✕';
       closeBtn.addEventListener('click', function(e){
         e.stopPropagation();
         closeTab(tab.id);
+        renderBrowserTabs();
       });
-      btn.appendChild(closeBtn);
+      row.appendChild(closeBtn);
     }
 
-    btn.addEventListener('click', function(){ switchTab(tab.id); });
-    browserTabsBar.appendChild(btn);
-  });
+    row.addEventListener('click', function(){
+      switchTab(tab.id);
+      browserMenuPanel.style.display = 'none';
+      goToSection('browser');
+    });
 
-  const addBtn = document.createElement('button');
-  addBtn.className = 'btab-add';
-  addBtn.textContent = '＋';
-  addBtn.addEventListener('click', function(){ openNewTab(''); });
-  browserTabsBar.appendChild(addBtn);
+    tabList.appendChild(row);
+  });
 }
 
 function showFrame(tab){
@@ -2254,8 +2286,6 @@ browserUrlInput.addEventListener('keydown', function(e){
 browserBack.addEventListener('click', function(){
   goToSection('home');
 });
-browserNewTab.addEventListener('click', function(){ openNewTab(''); });
-
 /* reload button */
 document.getElementById('browserReloadBtn').addEventListener('click', function(){
   const tab = btabs.find(function(t){ return t.id === activeTabId; });
@@ -2311,117 +2341,18 @@ const browserMenuPanel = document.getElementById('browserMenuPanel');
 const browserMenuBtn = document.getElementById('browserMenuBtn');
 browserMenuBtn.addEventListener('click', function(e){
   e.stopPropagation();
-  browserMenuPanel.style.display = browserMenuPanel.style.display === 'none' ? '' : 'none';
+  const isOpen = browserMenuPanel.style.display !== 'none';
+  browserMenuPanel.style.display = isOpen ? 'none' : '';
+  if(!isOpen) renderBrowserTabs();
 });
 document.addEventListener('click', function(){
   browserMenuPanel.style.display = 'none';
 });
 
 /* ---- tab grid ---- */
-const tabGridPanel = document.getElementById('tabGridPanel');
-const tabGrid = document.getElementById('tabGrid');
-const tabGridCount = document.getElementById('tabGridCount');
-
-function openTabGrid(){
-  tabGridPanel.style.display = 'flex';
-  renderTabGrid();
-}
-function closeTabGrid(){
-  tabGridPanel.style.display = 'none';
-}
-
-function renderTabGrid(){
-  tabGrid.innerHTML = '';
-  const sorted = btabs.slice().sort(function(a, b){
-    return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
-  });
-  tabGridCount.textContent = sorted.length + ' タブ';
-
-  sorted.forEach(function(tab){
-    const card = document.createElement('div');
-    card.className = 'tab-grid-card' + (tab.id === activeTabId ? ' active' : '') + (tab.pinned ? ' pinned' : '');
-
-    const thumb = document.createElement('div');
-    thumb.className = 'tab-grid-thumb';
-    const ph = document.createElement('div');
-    ph.className = 'thumb-placeholder';
-    try{ ph.textContent = tab.url ? new URL(tab.url).hostname : '新しいタブ'; }catch(e){ ph.textContent = tab.url || '新しいタブ'; }
-    thumb.appendChild(ph);
-
-    /* fetch thumbnail via microlink if not cached */
-    if(tab.url){
-      if(tab.thumbUrl){
-        /* already fetched */
-        const img = document.createElement('img');
-        img.src = tab.thumbUrl;
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;';
-        thumb.style.position = 'relative';
-        thumb.appendChild(img);
-      }else{
-        fetchLinkMeta(tab.url).then(function(meta){
-          if(meta && meta.image){
-            tab.thumbUrl = meta.image;
-            const img = document.createElement('img');
-            img.src = meta.image;
-            img.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;top:0;left:0;';
-            thumb.style.position = 'relative';
-            thumb.appendChild(img);
-          }
-        }).catch(function(){});
-      }
-    }
-
-    const info = document.createElement('div');
-    info.className = 'tab-grid-info';
-
-    const titleEl = document.createElement('div');
-    titleEl.className = 'tab-grid-title';
-    titleEl.textContent = tab.title || tab.url || '新しいタブ';
-
-    const pinBtn = document.createElement('button');
-    pinBtn.className = 'tab-grid-pin';
-    pinBtn.textContent = tab.pinned ? '📌' : '📍';
-    pinBtn.addEventListener('click', function(e){
-      e.stopPropagation();
-      tab.pinned = !tab.pinned;
-      saveTabs(); renderBrowserTabs(); renderTabGrid();
-    });
-
-    info.appendChild(titleEl);
-    info.appendChild(pinBtn);
-
-    if(!tab.pinned){
-      const closeBtn = document.createElement('button');
-      closeBtn.className = 'tab-grid-close';
-      closeBtn.textContent = '✕';
-      closeBtn.addEventListener('click', function(e){
-        e.stopPropagation();
-        closeTab(tab.id);
-        if(btabs.length === 0){ closeTabGrid(); return; }
-        renderTabGrid();
-      });
-      info.appendChild(closeBtn);
-    }
-
-    card.appendChild(thumb);
-    card.appendChild(info);
-    card.addEventListener('click', function(){
-      switchTab(tab.id);
-      closeTabGrid();
-      goToSection('browser');
-    });
-    tabGrid.appendChild(card);
-  });
-}
-
-document.getElementById('browserTabsBtn').addEventListener('click', function(){
+document.getElementById('bmenuNewTab').addEventListener('click', function(){
   browserMenuPanel.style.display = 'none';
-  openTabGrid();
-});
-document.getElementById('tabGridClose').addEventListener('click', closeTabGrid);
-document.getElementById('tabGridNewTab').addEventListener('click', function(){
   openNewTab('');
-  closeTabGrid();
 });
 
 document.getElementById('bmenuHistory').addEventListener('click', function(){
