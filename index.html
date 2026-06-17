@@ -2138,7 +2138,7 @@ cloudLoadAll().then(function(loaded){
     /* re-render with cloud data */
     apps = loadApps();
     bannerLinks = loadBannerLinks();
-    currentCategory = localStorage.getItem(CATEGORY_KEY) || bannerLinks.length ? currentCategory : '';
+    currentCategory = localStorage.getItem(CATEGORY_KEY) || currentCategory;
     renderCategoryTabs();
     renderBannerLinks();
     renderFavorites();
@@ -2149,6 +2149,9 @@ cloudLoadAll().then(function(loaded){
     /* restore browser tabs */
     btabs = [];
     loadTabsFromStorage();
+  }else{
+    /* first time or offline: push local data to cloud */
+    schedulCloudSave();
   }
 });
 
@@ -2549,7 +2552,8 @@ let currentBmTab = 'fav';
 
 function openBmPanel(tab){
   bmPanel.style.display = 'flex';
-  switchBmTab(tab || currentBmTab);
+  currentBmTab = ''; /* force re-render even if same tab */
+  switchBmTab(tab || 'fav');
 }
 
 document.getElementById('bmClose').addEventListener('click', function(){
@@ -2589,6 +2593,7 @@ function switchBmTab(tab){
   bmFavList.style.display = tab === 'fav' ? '' : 'none';
   document.getElementById('bmLaterList').style.display = tab === 'later' ? '' : 'none';
   document.getElementById('bmHistoryList').style.display = tab === 'history' ? '' : 'none';
+  /* always re-render to pick up latest data */
   if(tab === 'fav') renderBmFavs();
   else if(tab === 'later') renderBmLater();
   else if(tab === 'history') renderBmHistory();
