@@ -268,6 +268,56 @@
     display:flex;justify-content:flex-end;
     margin-bottom:8px;
   }
+  /* search modal */
+  .search-modal{
+    position:fixed;inset:0;
+    background:var(--bg);
+    z-index:60;
+    display:flex;flex-direction:column;
+  }
+  .search-modal-bar{
+    display:flex;align-items:center;gap:8px;
+    padding:10px 12px;
+    padding-top:calc(env(safe-area-inset-top) + 10px);
+    background:var(--card);
+    border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .search-modal-back{
+    background:none;border:none;color:var(--text);font-size:20px;padding:4px 6px;flex-shrink:0;
+  }
+  .search-modal-input-wrap{
+    flex:1;background:var(--card2);border-radius:10px;
+    display:flex;align-items:center;padding:0 12px;height:38px;
+  }
+  .search-modal-input-wrap input{
+    flex:1;border:none;background:transparent;
+    color:var(--text);font-size:15px;outline:none;
+  }
+  .search-modal-go{
+    background:var(--accent);color:#fff;border:none;
+    border-radius:10px;padding:8px 12px;font-size:16px;flex-shrink:0;
+  }
+  .search-modal-body{
+    flex:1;overflow-y:auto;padding:12px 14px;
+  }
+  .search-trend-head{
+    font-size:12px;font-weight:800;color:var(--sub);
+    margin:4px 0 8px;letter-spacing:.04em;
+  }
+  .trend-list{display:flex;flex-direction:column;gap:2px;}
+  .trend-item{
+    display:flex;align-items:center;gap:12px;
+    padding:11px 14px;
+    border-radius:10px;
+    background:var(--card);
+    color:var(--text);font-size:14px;
+    cursor:pointer;
+  }
+  .trend-item:active{background:var(--card2);}
+  .trend-item .trend-icon{font-size:16px;flex-shrink:0;width:22px;text-align:center;}
+  .trend-item .trend-text{flex:1;}
+
   /* fixed bottom search bar */
   .search-bar-fixed{
     position:fixed;
@@ -1101,12 +1151,30 @@
 </div>
 
 <div class="search-bar-fixed" id="searchBarFixed">
-  <div class="suggest-list" id="suggestList"></div>
   <form class="search-box" id="searchForm" autocomplete="off">
     <span class="search-g-logo">G</span>
-    <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off">
+    <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off" readonly>
     <button type="submit">🔍</button>
   </form>
+</div>
+
+<!-- search modal -->
+<div class="search-modal" id="searchModal" style="display:none;">
+  <div class="search-modal-bar">
+    <button class="search-modal-back" id="searchModalBack">←</button>
+    <div class="search-modal-input-wrap">
+      <input type="text" id="searchModalInput" placeholder="Google で検索" autocomplete="off">
+    </div>
+    <button class="search-modal-go" id="searchModalGo">🔍</button>
+  </div>
+  <div class="search-modal-body">
+    <div class="search-trend-head">🔥 急上昇ワード</div>
+    <div id="trendList" class="trend-list"></div>
+    <div id="suggestSection" style="display:none;">
+      <div class="search-trend-head">💡 候補</div>
+      <div id="suggestList" class="trend-list"></div>
+    </div>
+  </div>
 </div>
 
 
@@ -2619,45 +2687,89 @@ if(window.visualViewport){
   });
 }
 
-/* ---- search + suggestions ---- */
-const searchInput = document.getElementById('searchInput');
+/* ---- search modal ---- */
+const searchModal = document.getElementById('searchModal');
+const searchModalInput = document.getElementById('searchModalInput');
 const suggestList = document.getElementById('suggestList');
+const suggestSection = document.getElementById('suggestSection');
+const trendList = document.getElementById('trendList');
 let suggestTimer = null;
+
+function openSearchModal(){
+  searchModal.style.display = 'flex';
+  setTimeout(function(){ searchModalInput.focus(); }, 80);
+  loadTrends();
+}
+function closeSearchModal(){
+  searchModal.style.display = 'none';
+  searchModalInput.value = '';
+  suggestSection.style.display = 'none';
+  suggestList.innerHTML = '';
+}
 
 function openSearch(q){
   if(!q) return;
-  suggestList.style.display = 'none';
+  closeSearchModal();
   window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
 }
 
-function showSuggestions(list){
-  suggestList.innerHTML = '';
-  if(!list || !list.length){
-    suggestList.style.display = 'none';
-    return;
-  }
-  list.slice(0, 6).forEach(function(text){
-    const item = document.createElement('div');
-    item.className = 'item';
-    item.textContent = text;
-    item.addEventListener('click', function(){
-      searchInput.value = text;
-      openSearch(text);
-    });
-    suggestList.appendChild(item);
-  });
-  suggestList.style.display = 'block';
+function makeTrendItem(icon, text){
+  const item = document.createElement('div');
+  item.className = 'trend-item';
+  const ic = document.createElement('span');
+  ic.className = 'trend-icon';
+  ic.textContent = icon;
+  const tx = document.createElement('span');
+  tx.className = 'trend-text';
+  tx.textContent = text;
+  item.appendChild(ic);
+  item.appendChild(tx);
+  item.addEventListener('click', function(){ openSearch(text); });
+  return item;
+}
+
+function loadTrends(){
+  trendList.innerHTML = '<div style="padding:8px 14px;font-size:13px;color:var(--sub);">読み込み中...</div>';
+  const cbName = '__trend_' + Date.now();
+  const script = document.createElement('script');
+  function cleanup(){ delete window[cbName]; if(script.parentNode) script.parentNode.removeChild(script); }
+  window[cbName] = function(data){
+    trendList.innerHTML = '';
+    const items = data && data[1] ? data[1] : [];
+    if(!items.length){
+      trendList.innerHTML = '<div style="padding:8px 14px;font-size:13px;color:var(--sub);">取得できませんでした</div>';
+    }else{
+      items.slice(0, 8).forEach(function(text, i){
+        trendList.appendChild(makeTrendItem(['🔥','🔥','🔥','📈','📈','🔍','🔍','🔍'][i] || '🔍', text));
+      });
+    }
+    cleanup();
+  };
+  script.onerror = function(){
+    trendList.innerHTML = '<div style="padding:8px 14px;font-size:13px;color:var(--sub);">取得できませんでした</div>';
+    cleanup();
+  };
+  /* use empty popular query to get trending suggestions */
+  script.src = 'https://suggestqueries.google.com/complete/search?client=chrome&jsonp=' + cbName + '&hl=ja&q=';
+  document.body.appendChild(script);
 }
 
 function fetchSuggestions(query){
+  if(!query){ suggestSection.style.display = 'none'; return; }
   const cbName = '__sugg_' + Date.now();
   const script = document.createElement('script');
-  function cleanup(){
-    delete window[cbName];
-    if(script.parentNode) script.parentNode.removeChild(script);
-  }
+  function cleanup(){ delete window[cbName]; if(script.parentNode) script.parentNode.removeChild(script); }
   window[cbName] = function(data){
-    showSuggestions(data && data[1] ? data[1] : []);
+    const items = data && data[1] ? data[1] : [];
+    suggestList.innerHTML = '';
+    if(items.length){
+      suggestSection.style.display = '';
+      items.slice(0, 6).forEach(function(text){
+        suggestList.appendChild(makeTrendItem('🔍', text));
+      });
+    }else{
+      suggestSection.style.display = 'none';
+    }
     cleanup();
   };
   script.onerror = cleanup;
@@ -2665,25 +2777,31 @@ function fetchSuggestions(query){
   document.body.appendChild(script);
 }
 
-searchInput.addEventListener('input', function(){
-  const q = searchInput.value.trim();
+searchModalInput.addEventListener('input', function(){
+  const q = searchModalInput.value.trim();
   clearTimeout(suggestTimer);
-  if(!q){
-    suggestList.style.display = 'none';
-    return;
-  }
+  if(!q){ suggestSection.style.display = 'none'; return; }
   suggestTimer = setTimeout(function(){ fetchSuggestions(q); }, 200);
 });
 
-document.addEventListener('click', function(e){
-  if(!suggestList.contains(e.target) && e.target !== searchInput){
-    suggestList.style.display = 'none';
-  }
+searchModalInput.addEventListener('keydown', function(e){
+  if(e.key === 'Enter') openSearch(searchModalInput.value.trim());
 });
 
+document.getElementById('searchModalBack').addEventListener('click', closeSearchModal);
+document.getElementById('searchModalGo').addEventListener('click', function(){
+  openSearch(searchModalInput.value.trim());
+});
+
+/* clicking the fixed search bar opens the modal */
+const searchInput = document.getElementById('searchInput');
+document.getElementById('searchForm').addEventListener('click', function(e){
+  e.preventDefault();
+  openSearchModal();
+});
 document.getElementById('searchForm').addEventListener('submit', function(e){
   e.preventDefault();
-  openSearch(searchInput.value.trim());
+  openSearchModal();
 });
 
 /* ---- weather ---- */
