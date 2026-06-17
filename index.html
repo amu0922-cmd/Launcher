@@ -1284,7 +1284,8 @@ const CLOUD_SYNC_KEYS = [
   'launcherApps', 'launcherFeeds', 'launcherBannerLinks',
   'launcherBannerCategory', 'launcherCategoryOrder',
   'launcherBrowserTabs', 'launcherFavorites', 'launcherReadLater',
-  'launcherTheme', 'launcherBackground', 'launcherBanner'
+  'launcherTheme', 'launcherBackground', 'launcherBanner',
+  'launcherBrowserHistory'
 ];
 
 let syncDebounceTimer = null;
@@ -2192,6 +2193,11 @@ function goToSection(key){
   weatherBoxEl.style.display = key === 'home' ? '' : 'none';
   searchBarFixed.style.display = key === 'home' ? '' : 'none';
   browserPanel.classList.toggle('visible', key === 'browser');
+  /* auto-load active tab when opening browser */
+  if(key === 'browser' && activeTabId){
+    const tab = btabs.find(function(t){ return t.id === activeTabId; });
+    if(tab && tab.url && !tab.iframe) showFrame(tab);
+  }
   if(key === 'feed' && !document.getElementById('feedList').children.length) loadFeed();
 }
 
@@ -2229,7 +2235,10 @@ function loadTabsFromStorage(){
     if(btabs.length){
       const restoreId = data.activeId && btabs.find(function(t){ return t.id === data.activeId; }) ? data.activeId : btabs[0].id;
       activeTabId = restoreId;
-      /* renderBrowserTabs called later after DOM ready */
+      /* update URL bar to show last active URL */
+      const activeTab = btabs.find(function(t){ return t.id === restoreId; });
+      const urlInput = document.getElementById('browserUrlInput');
+      if(activeTab && urlInput) urlInput.value = activeTab.url || '';
     }
   }catch(e){}
 }
