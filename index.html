@@ -2160,7 +2160,12 @@ cloudLoadAll().then(function(loaded){
     /* re-render with cloud data */
     apps = loadApps();
     bannerLinks = loadBannerLinks();
-    currentCategory = localStorage.getItem(CATEGORY_KEY) || currentCategory;
+    /* always start from first visible category regardless of saved value */
+    const cats = getOrderedCategories().filter(function(c){ return !isSecretCategory(c); });
+    if(cats.length){
+      currentCategory = cats[0];
+      localStorage.setItem(CATEGORY_KEY, cats[0]);
+    }
     renderCategoryTabs();
     renderBannerLinks();
     renderFavorites();
