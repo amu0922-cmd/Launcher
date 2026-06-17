@@ -1664,7 +1664,7 @@ function renderCategoryTabs(){
   });
 
   if(visible.length){
-    /* if current category is not visible, reset to first visible */
+    /* always start from first category */
     if(visible.indexOf(currentCategory) === -1){
       currentCategory = visible[0];
       localStorage.setItem(CATEGORY_KEY, currentCategory);
@@ -2142,6 +2142,17 @@ document.getElementById('linkDelete').addEventListener('click', function(){
 
 renderCategoryTabs();
 renderBannerLinks();
+
+/* reset to first category on every launch */
+(function(){
+  const cats = getOrderedCategories().filter(function(c){ return !isSecretCategory(c); });
+  if(cats.length){
+    currentCategory = cats[0];
+    localStorage.setItem(CATEGORY_KEY, cats[0]);
+    renderCategoryTabs();
+    renderBannerLinks();
+  }
+})();
 
 /* ---- cloud sync on startup ---- */
 cloudLoadAll().then(function(loaded){
