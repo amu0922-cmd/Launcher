@@ -1327,20 +1327,39 @@ async function cloudSaveAll(){
     if(val !== null) return sbSet(key, val);
   }).filter(Boolean);
   await Promise.all(promises);
+  localStorage.setItem(SB_LAST_SYNC_KEY, new Date().toISOString());
 }
+
+const SB_LAST_SYNC_KEY = 'launcherLastCloudSync';
 
 async function cloudLoadAll(){
   const indicator = document.getElementById('syncIndicator');
   if(indicator) indicator.textContent = '☁️ 同期中...';
   try{
-    const res = await fetch(SB_URL + '/rest/v1/launcher_data?key=in.(' + CLOUD_SYNC_KEYS.map(function(k){ return '"' + k + '"'; }).join(',') + ')&select=key,value', {
+    const res = await fetch(SB_URL + '/rest/v1/launcher_data?key=in.(' + CLOUD_SYNC_KEYS.map(function(k){ return '"' + k + '"'; }).join(',') + ')&select=key,value,updated_at', {
       headers: SB_HEADERS
     });
     const data = await res.json();
     if(Array.isArray(data) && data.length){
+      const lastSync = localStorage.getItem(SB_LAST_SYNC_KEY);
       data.forEach(function(row){
-        if(row.value !== null) localStorage.setItem(row.key, row.value);
+        if(row.value === null) return;
+        /* only overwrite if cloud is newer than last sync */
+        /* if user changed locally after last sync, keep local */
+        if(!lastSync){
+          /* first time: load everything from cloud */
+          localStorage.setItem(row.key, row.value);
+        }else{
+          const cloudTime = new Date(row.updated_at).getTime();
+          const syncTime = new Date(lastSync).getTime();
+          if(cloudTime > syncTime){
+            /* cloud updated after our last sync → use cloud */
+            localStorage.setItem(row.key, row.value);
+          }
+          /* else: local is newer, keep local */
+        }
       });
+      localStorage.setItem(SB_LAST_SYNC_KEY, new Date().toISOString());
       if(indicator) indicator.textContent = '✓ 同期済み';
       setTimeout(function(){ if(indicator) indicator.textContent = ''; }, 2000);
       return true;
