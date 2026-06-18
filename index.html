@@ -2695,7 +2695,7 @@ function renderBmHistory(){
     const row = makeBmRow(item.title, item.url, function(){
       const updated = loadHistory().filter(function(h){ return h.url !== item.url; });
       saveHistory(updated); renderBmHistory();
-    });
+    }, true /* showExternal */);
     list.appendChild(row);
   });
 }
@@ -2731,7 +2731,7 @@ function renderBmLater(){
   });
 }
 
-function makeBmRow(title, url, onDelete){
+function makeBmRow(title, url, onDelete, showExternal){
   const row = document.createElement('div');
   row.className = 'bm-row';
 
@@ -2756,14 +2756,29 @@ function makeBmRow(title, url, onDelete){
     browserNavigate(url);
   });
 
+  if(showExternal){
+    const extBtn = document.createElement('button');
+    extBtn.className = 'bm-row-del';
+    extBtn.textContent = '🌐';
+    extBtn.title = '外部ブラウザで開く';
+    extBtn.addEventListener('click', function(e){
+      e.stopPropagation();
+      window.open(url, '_blank');
+    });
+    row.appendChild(icon);
+    row.appendChild(body);
+    row.appendChild(extBtn);
+  }else{
+    row.appendChild(icon);
+    row.appendChild(body);
+  }
+
   const del = document.createElement('button');
   del.className = 'bm-row-del';
   del.textContent = '🗑️';
   del.addEventListener('click', function(e){ e.stopPropagation(); onDelete(); });
-
-  row.appendChild(icon);
-  row.appendChild(body);
   row.appendChild(del);
+
   return row;
 }
 
