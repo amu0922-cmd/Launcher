@@ -78,12 +78,8 @@
     max-width:452px;
     z-index:39;
     display:flex;
-    align-items:center;
-    gap:4px;
-    padding:8px 10px;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-    cursor:pointer;
+    align-items:stretch;
+    gap:0;
     background:var(--card);
     border-radius:14px;
     box-shadow:0 2px 10px rgba(0,0,0,.08);
@@ -91,7 +87,41 @@
     -webkit-user-select:none;user-select:none;
     -webkit-touch-callout:none;
   }
-  .weather-fixed::-webkit-scrollbar{display:none;}
+  .weather-half{
+    flex:0 0 50%;
+    display:flex;
+    align-items:center;
+    gap:4px;
+    padding:8px 10px;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    cursor:pointer;
+    min-width:0;
+  }
+  .weather-half::-webkit-scrollbar{display:none;}
+  .clock-half{
+    flex:0 0 50%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:8px 10px;
+    border-left:1px solid var(--border);
+    min-width:0;
+  }
+  .clock-time{
+    font-size:22px;font-weight:800;
+    color:var(--text);
+    line-height:1.1;
+    letter-spacing:.02em;
+    font-variant-numeric:tabular-nums;
+  }
+  .clock-date{
+    font-size:10px;
+    color:var(--text);
+    opacity:.6;
+    margin-top:2px;
+  }
   .ws-day{
     flex:1 0 auto;
     min-width:40px;
@@ -114,6 +144,23 @@
     background:none;border:none;
     color:var(--text);
     font-size:14px;padding:4px 6px;flex-shrink:0;opacity:.45;
+  }
+
+  /* in-browser floating clock */
+  .browser-clock{
+    position:absolute;
+    top:calc(env(safe-area-inset-top) + 96px);
+    right:10px;
+    z-index:30;
+    background:rgba(0,0,0,.45);
+    color:#fff;
+    font-size:11px;font-weight:700;
+    padding:4px 9px;
+    border-radius:999px;
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    pointer-events:none;
+    font-variant-numeric:tabular-nums;
+    letter-spacing:.02em;
   }
 
   /* banner */
@@ -1158,8 +1205,14 @@
 </div><!-- end pager -->
 
 <div class="weather-fixed" id="weatherBox">
-  <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
-  <button class="ws-reload" id="wReload" title="更新">↻</button>
+  <div class="weather-half">
+    <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
+    <button class="ws-reload" id="wReload" title="更新">↻</button>
+  </div>
+  <div class="clock-half" id="clockHalf">
+    <div class="clock-time" id="clockTime">--:--</div>
+    <div class="clock-date" id="clockDate">--/--</div>
+  </div>
 </div>
 
 <div class="search-bar-fixed" id="searchBarFixed">
@@ -3073,6 +3126,39 @@ loadWeather();
 document.getElementById('weatherBox').addEventListener('contextmenu', function(e){
   e.preventDefault();
 });
+
+/* ---- clock ---- */
+const clockTime = document.getElementById('clockTime');
+const clockDate = document.getElementById('clockDate');
+const weekdayShort = ['日','月','火','水','木','金','土'];
+
+function updateClock(){
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  if(clockTime) clockTime.textContent = hh + ':' + mm;
+  if(clockDate) clockDate.textContent = (now.getMonth() + 1) + '/' + now.getDate() + '(' + weekdayShort[now.getDay()] + ')';
+}
+updateClock();
+setInterval(updateClock, 1000 * 15);
+
+/* in-browser floating clock */
+(function(){
+  const browserPanelEl = document.getElementById('secBrowser');
+  if(!browserPanelEl) return;
+  const clk = document.createElement('div');
+  clk.className = 'browser-clock';
+  clk.id = 'browserClock';
+  browserPanelEl.appendChild(clk);
+  function updateBrowserClock(){
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    clk.textContent = hh + ':' + mm;
+  }
+  updateBrowserClock();
+  setInterval(updateBrowserClock, 1000 * 15);
+})();
 const bgFile = document.getElementById('bgFile');
 const resetBgBtn = document.getElementById('resetBgBtn');
 
