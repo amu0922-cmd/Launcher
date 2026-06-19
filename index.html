@@ -149,18 +149,28 @@
   /* in-browser floating clock */
   .browser-clock{
     position:absolute;
-    top:calc(env(safe-area-inset-top) + 96px);
-    right:10px;
     z-index:30;
     background:rgba(0,0,0,.45);
     color:#fff;
-    font-size:11px;font-weight:700;
+    font-weight:700;
     padding:4px 9px;
     border-radius:999px;
     backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-    pointer-events:none;
     font-variant-numeric:tabular-nums;
     letter-spacing:.02em;
+    touch-action:none;
+    cursor:grab;
+    user-select:none;
+    -webkit-user-select:none;
+    white-space:nowrap;
+  }
+  .browser-clock-resize{
+    position:absolute;
+    right:-4px;bottom:-4px;
+    width:18px;height:18px;
+    background:rgba(255,255,255,.5);
+    border-radius:50%;
+    touch-action:none;
   }
 
   /* banner */
@@ -3142,22 +3152,112 @@ function updateClock(){
 updateClock();
 setInterval(updateClock, 1000 * 15);
 
-/* in-browser floating clock */
+/* in-browser floating clock (draggable + resizable) */
 (function(){
   const browserPanelEl = document.getElementById('secBrowser');
   if(!browserPanelEl) return;
+
+  const CLOCK_POS_KEY = 'launcherBrowserClockPos';
+  const defaultPos = { top: 96, right: 10, fontSize: 11 };
+
+  function loadClockPos(){
+    try{
+      const raw = localStorage.getItem(CLOCK_POS_KEY);
+      if(raw) return Object.assign({}, defaultPos, JSON.parse(raw));
+    }catch(e){}
+    return Object.assign({}, defaultPos);
+  }
+  function saveClockPos(pos){
+    try{ localStorage.setItem(CLOCK_POS_KEY, JSON.stringify(pos)); }catch(e){}
+  }
+
+  let pos = loadClockPos();
+
   const clk = document.createElement('div');
   clk.className = 'browser-clock';
   clk.id = 'browserClock';
+
+  const resizeHandle = document.createElement('div');
+  resizeHandle.className = 'browser-clock-resize';
+  clk.appendChild(resizeHandle);
+
   browserPanelEl.appendChild(clk);
+
+  function applyPos(){
+    clk.style.top = (pos.top) + 'px';
+    clk.style.left = pos.left !== undefined ? pos.left + 'px' : '';
+    clk.style.right = pos.left !== undefined ? '' : pos.right + 'px';
+    clk.style.fontSize = pos.fontSize + 'px';
+  }
+  applyPos();
+
   function updateBrowserClock(){
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
-    clk.textContent = hh + ':' + mm;
+    /* keep resize handle as last child; set text via a span */
+    if(!clk.querySelector('.clock-text')){
+      const span = document.createElement('span');
+      span.className = 'clock-text';
+      clk.insertBefore(span, resizeHandle);
+    }
+    clk.querySelector('.clock-text').textContent = hh + ':' + mm;
   }
   updateBrowserClock();
   setInterval(updateBrowserClock, 1000 * 15);
+
+  /* drag logic */
+  let dragging = false, dragStartX = 0, dragStartY = 0, startTop = 0, startLeft = 0;
+
+  clk.addEventListener('pointerdown', function(e){
+    if(e.target === resizeHandle) return;
+    dragging = true;
+    clk.setPointerCapture(e.pointerId);
+    clk.style.cursor = 'grabbing';
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = clk.getBoundingClientRect();
+    const parentRect = browserPanelEl.getBoundingClientRect();
+    startTop = rect.top - parentRect.top;
+    startLeft = rect.left - parentRect.left;
+  });
+  clk.addEventListener('pointermove', function(e){
+    if(!dragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    pos.top = Math.max(0, startTop + dy);
+    pos.left = Math.max(0, startLeft + dx);
+    delete pos.right;
+    applyPos();
+  });
+  clk.addEventListener('pointerup', function(e){
+    if(!dragging) return;
+    dragging = false;
+    clk.style.cursor = 'grab';
+    saveClockPos(pos);
+  });
+
+  /* resize logic */
+  let resizing = false, resizeStartX = 0, startFontSize = 11;
+  resizeHandle.addEventListener('pointerdown', function(e){
+    e.stopPropagation();
+    resizing = true;
+    resizeHandle.setPointerCapture(e.pointerId);
+    resizeStartX = e.clientX;
+    startFontSize = pos.fontSize;
+  });
+  resizeHandle.addEventListener('pointermove', function(e){
+    if(!resizing) return;
+    e.stopPropagation();
+    const dx = e.clientX - resizeStartX;
+    pos.fontSize = Math.max(9, Math.min(40, startFontSize + dx * 0.3));
+    applyPos();
+  });
+  resizeHandle.addEventListener('pointerup', function(e){
+    if(!resizing) return;
+    resizing = false;
+    saveClockPos(pos);
+  });
 })();
 const bgFile = document.getElementById('bgFile');
 const resetBgBtn = document.getElementById('resetBgBtn');
