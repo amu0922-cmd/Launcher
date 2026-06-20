@@ -50,7 +50,7 @@
     height:100%;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 340px) 14px;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 80px) 14px;
   }
   .wrap{max-width:480px;margin:0 auto;}
 
@@ -70,23 +70,6 @@
   }
 
   /* weekly weather strip — fixed above search bar, transparent on background */
-  .weather-fixed{
-    position:fixed;
-    bottom:calc(env(safe-area-inset-bottom) + 100px);
-    left:50%;transform:translateX(-50%);
-    width:calc(100% - 28px);
-    max-width:452px;
-    z-index:39;
-    display:flex;
-    align-items:stretch;
-    gap:0;
-    background:var(--card);
-    border-radius:14px;
-    box-shadow:0 2px 10px rgba(0,0,0,.08);
-    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-    -webkit-user-select:none;user-select:none;
-    -webkit-touch-callout:none;
-  }
   .weather-half{
     flex:0 0 65%;
     display:flex;
@@ -146,8 +129,19 @@
     font-size:14px;padding:4px 6px;flex-shrink:0;opacity:.45;
   }
 
-  /* in-browser floating clock */
-  .browser-clock{
+  /* inline weather strip at top of home */
+  .weather-inline{
+    display:flex;
+    align-items:stretch;
+    gap:0;
+    background:var(--card);
+    border-radius:14px;
+    box-shadow:0 2px 8px rgba(0,0,0,.07);
+    backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    -webkit-user-select:none;user-select:none;
+    -webkit-touch-callout:none;
+    margin-bottom:12px;
+  }
     position:absolute;
     z-index:30;
     background:rgba(0,0,0,.45);
@@ -447,7 +441,7 @@
   }
 
   /* extra bottom padding on home page so links aren't hidden behind search bar */
-  #pageHome{ position:relative; }
+  #secHome{ transition: background 0.3s ease; border-radius: 12px; }
 
   /* pull to refresh */
   .ptr-indicator{
@@ -1128,9 +1122,17 @@
 
       <!-- home section -->
       <div class="section" id="secHome">
+        <!-- weather strip inline at top -->
+        <div class="weather-inline" id="weatherBox">
+          <div class="weather-half" style="flex:1;">
+            <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
+            <button class="ws-reload" id="wReload" title="更新">↻</button>
+          </div>
+        </div>
         <div class="grid" id="appGrid" style="display:none;"></div>
         <div class="category-tabs" id="categoryTabs"></div>
         <div class="banner-links" id="bannerLinks"></div>
+        <div id="bottomSpacer" style="height:80px;pointer-events:none;flex-shrink:0;"></div>
       </div>
 
       <!-- feed section -->
@@ -1213,17 +1215,6 @@
 
 </div><!-- end pager-inner -->
 </div><!-- end pager -->
-
-<div class="weather-fixed" id="weatherBox">
-  <div class="weather-half">
-    <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
-    <button class="ws-reload" id="wReload" title="更新">↻</button>
-  </div>
-  <div class="clock-half" id="clockHalf">
-    <div class="clock-time" id="clockTime">--:--</div>
-    <div class="clock-date" id="clockDate">--/--</div>
-  </div>
-</div>
 
 <div class="search-bar-fixed" id="searchBarFixed">
   <form class="search-box" id="searchForm" autocomplete="off">
@@ -1888,11 +1879,24 @@ function exitDragMode(){
   dragSrcId = null;
 }
 
+const CATEGORY_COLORS = ['#e85d75','#f5a623','#4f8cff','#39b873','#9b6cf0','#30b6c9','#e67e3a'];
+
+function getCategoryColor(cat){
+  const cats = getOrderedCategories().filter(function(c){ return !isSecretCategory(c); });
+  const idx = cats.indexOf(cat);
+  if(idx === -1) return null;
+  return CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
+}
+
 function makeLinkCard(item){
   const card = document.createElement('div');
   card.className = 'banner-link-card' +
     (item.layout === 'square' ? ' square' : item.layout === 'tall' ? ' tall' : '');
   card.dataset.id = item.id;
+
+  /* apply category color as subtle tint on empty card bg only */
+  const cat = (item.category && item.category.trim()) || '未分類';
+  const catColor = null; /* color tint disabled */
 
   if(item.image){
     const img = document.createElement('img');
@@ -1903,6 +1907,7 @@ function makeLinkCard(item){
     const empty = document.createElement('div');
     empty.className = 'banner-link-empty';
     empty.textContent = item.layout === 'square' ? '＋' : '画像未設定(タップして設定)';
+    if(catColor) empty.style.background = catColor + '22';
     card.appendChild(empty);
   }
 
@@ -2010,6 +2015,9 @@ function makeLinkCard(item){
 function renderBannerLinks(){
   linksContainer.innerHTML = '';
   const filtered = getFilteredLinks();
+  linksContainer.style.background = '';
+  linksContainer.style.borderRadius = '';
+  linksContainer.style.padding = '';
 
   let squareRow = null;
   filtered.forEach(function(item){
@@ -2293,7 +2301,6 @@ const sections = {
 };
 let currentSection = 'home';
 
-const weatherBoxEl = document.getElementById('weatherBox');
 const browserPanel = document.getElementById('secBrowser');
 
 function goToSection(key){
@@ -2304,7 +2311,6 @@ function goToSection(key){
   document.querySelectorAll('.section-tab').forEach(function(btn){
     btn.classList.toggle('active', btn.dataset.sec === key);
   });
-  weatherBoxEl.style.display = key === 'home' ? '' : 'none';
   searchBarFixed.style.display = key === 'home' ? '' : 'none';
   browserPanel.classList.toggle('visible', key === 'browser');
   /* auto-load active tab when opening browser */
@@ -3136,21 +3142,6 @@ loadWeather();
 document.getElementById('weatherBox').addEventListener('contextmenu', function(e){
   e.preventDefault();
 });
-
-/* ---- clock ---- */
-const clockTime = document.getElementById('clockTime');
-const clockDate = document.getElementById('clockDate');
-const weekdayShort = ['日','月','火','水','木','金','土'];
-
-function updateClock(){
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-  if(clockTime) clockTime.textContent = hh + ':' + mm;
-  if(clockDate) clockDate.textContent = (now.getMonth() + 1) + '/' + now.getDate() + '(' + weekdayShort[now.getDay()] + ')';
-}
-updateClock();
-setInterval(updateClock, 1000 * 15);
 
 /* in-browser floating clock (draggable + resizable) */
 (function(){
