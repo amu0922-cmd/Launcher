@@ -1297,8 +1297,9 @@
     </div>
     <label>ブラウザ</label>
     <div class="layout-toggle">
-      <button class="layout-btn active" id="browserInternal" data-browser="internal">🌐 内蔵ブラウザ</button>
-      <button class="layout-btn" id="browserExternal" data-browser="external">🔗 外部ブラウザ</button>
+      <button class="layout-btn active" id="browserInternal" data-browser="internal">🌐 内蔵</button>
+      <button class="layout-btn" id="browserExternal" data-browser="external">🔗 外部</button>
+      <button class="layout-btn" id="browserDirect" data-browser="direct">🚀 直接</button>
     </div>
     <label>画像 <span id="thumbStatus" style="color:var(--sub);font-size:11px;"></span></label>
     <div class="link-preview" id="linkPreview">画像未設定</div>
@@ -2003,6 +2004,8 @@ function makeLinkCard(item){
       if(item.url){
         if(item.browser === 'external'){
           window.open(item.url, '_blank');
+        }else if(item.browser === 'direct'){
+          location.href = item.url;
         }else{
           launchApp(item.url);
         }
@@ -2069,13 +2072,16 @@ layoutSquareBtn.addEventListener('click', function(){ setLayoutToggle('square');
 let pickedBrowser = 'internal';
 const browserInternalBtn = document.getElementById('browserInternal');
 const browserExternalBtn = document.getElementById('browserExternal');
+const browserDirectBtn  = document.getElementById('browserDirect');
 function setBrowserToggle(b){
   pickedBrowser = b;
   browserInternalBtn.classList.toggle('active', b === 'internal');
   browserExternalBtn.classList.toggle('active', b === 'external');
+  browserDirectBtn.classList.toggle('active',   b === 'direct');
 }
 browserInternalBtn.addEventListener('click', function(){ setBrowserToggle('internal'); });
 browserExternalBtn.addEventListener('click', function(){ setBrowserToggle('external'); });
+browserDirectBtn.addEventListener('click',   function(){ setBrowserToggle('direct'); });
 const linkPreview = document.getElementById('linkPreview');
 const linkDeleteRow = document.getElementById('linkDeleteRow');
 const thumbStatus = document.getElementById('thumbStatus');
