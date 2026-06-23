@@ -1251,6 +1251,13 @@
     <button class="search-modal-go" id="searchModalGo">🔍</button>
   </div>
   <div class="search-modal-body">
+    <div id="searchHistorySection">
+      <div class="search-trend-head" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>🕐 検索履歴</span>
+        <button id="clearSearchHistoryBtn" style="background:none;border:none;color:var(--sub);font-size:11px;">全削除</button>
+      </div>
+      <div id="searchHistoryList" class="trend-list"></div>
+    </div>
     <div id="suggestSection" style="display:none;">
       <div class="search-trend-head">💡 候補</div>
       <div id="suggestList" class="trend-list"></div>
@@ -2982,6 +2989,67 @@ if(window.visualViewport){
 
 /* ---- search modal ---- */
 const searchModal = document.getElementById('searchModal');
+const SEARCH_HISTORY_KEY = 'launcherSearchHistory';
+const SEARCH_HISTORY_MAX = 20;
+
+function loadSearchHistory(){
+  try{ const r = localStorage.getItem(SEARCH_HISTORY_KEY); return r ? JSON.parse(r) : []; }catch(e){ return []; }
+}
+function saveSearchHistory(items){
+  try{ localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(items)); }catch(e){}
+}
+function addSearchHistory(q){
+  if(!q) return;
+  let items = loadSearchHistory().filter(function(h){ return h !== q; });
+  items.unshift(q);
+  if(items.length > SEARCH_HISTORY_MAX) items = items.slice(0, SEARCH_HISTORY_MAX);
+  saveSearchHistory(items);
+}
+function renderSearchHistory(){
+  const list = document.getElementById('searchHistoryList');
+  const section = document.getElementById('searchHistorySection');
+  if(!list) return;
+  const items = loadSearchHistory();
+  list.innerHTML = '';
+  if(!items.length){ section.style.display = 'none'; return; }
+  section.style.display = '';
+  items.forEach(function(q){
+    const row = document.createElement('div');
+    row.className = 'trend-item';
+    row.style.justifyContent = 'space-between';
+    const left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:12px;flex:1;min-width:0;';
+    const icon = document.createElement('span');
+    icon.className = 'trend-icon';
+    icon.textContent = '🕐';
+    const text = document.createElement('span');
+    text.className = 'trend-text';
+    text.textContent = q;
+    text.style.overflow = 'hidden';
+    text.style.textOverflow = 'ellipsis';
+    text.style.whiteSpace = 'nowrap';
+    left.appendChild(icon);
+    left.appendChild(text);
+    left.addEventListener('click', function(){ openSearch(q); });
+    const del = document.createElement('button');
+    del.style.cssText = 'background:none;border:none;color:var(--sub);font-size:16px;padding:4px 8px;flex-shrink:0;';
+    del.textContent = '✕';
+    del.addEventListener('click', function(e){
+      e.stopPropagation();
+      saveSearchHistory(loadSearchHistory().filter(function(h){ return h !== q; }));
+      renderSearchHistory();
+    });
+    row.appendChild(left);
+    row.appendChild(del);
+    list.appendChild(row);
+  });
+}
+
+document.getElementById('clearSearchHistoryBtn').addEventListener('click', function(){
+  saveSearchHistory([]);
+  renderSearchHistory();
+});
+
 const searchModalInput = document.getElementById('searchModalInput');
 const suggestList = document.getElementById('suggestList');
 const suggestSection = document.getElementById('suggestSection');
@@ -2991,6 +3059,7 @@ let suggestTimer = null;
 function openSearchModal(){
   searchModal.style.display = 'flex';
   setTimeout(function(){ searchModalInput.focus(); }, 80);
+  renderSearchHistory();
   loadTrends();
 }
 function closeSearchModal(){
@@ -3002,6 +3071,7 @@ function closeSearchModal(){
 
 function openSearch(q){
   if(!q) return;
+  addSearchHistory(q);
   closeSearchModal();
   window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
 }
