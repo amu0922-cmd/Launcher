@@ -2007,7 +2007,18 @@ function makeLinkCard(item){
           window.open(item.url, '_blank');
         }else if(item.browser === 'direct'){
           e.preventDefault();
-          setTimeout(function(){ location.href = item.url; }, 0);
+          /* Use Android intent to force open in default browser outside PWA */
+          try{
+            const encoded = encodeURIComponent(item.url);
+            const intentUrl = 'intent://' + item.url.replace(/^https?:\/\//, '') +
+              '#Intent;scheme=' + (item.url.startsWith('https') ? 'https' : 'http') +
+              ';action=android.intent.action.VIEW' +
+              ';category=android.intent.category.BROWSABLE' +
+              ';end';
+            location.href = intentUrl;
+          }catch(ex){
+            location.href = item.url;
+          }
         }else{
           launchApp(item.url);
         }
