@@ -1251,7 +1251,7 @@
     <button class="search-modal-go" id="searchModalGo">🔍</button>
   </div>
   <div class="search-modal-body">
-    <div id="searchHistorySection">
+    <div id="searchHistorySection" style="display:none;">
       <div class="search-trend-head" style="display:flex;align-items:center;justify-content:space-between;">
         <span>🕐 検索履歴</span>
         <button id="clearSearchHistoryBtn" style="background:none;border:none;color:var(--sub);font-size:11px;">全削除</button>
@@ -3073,7 +3073,8 @@ function openSearch(q){
   if(!q) return;
   addSearchHistory(q);
   closeSearchModal();
-  window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
+  const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(q);
+  openInBrowser(searchUrl);
 }
 
 function makeTrendItem(icon, text){
