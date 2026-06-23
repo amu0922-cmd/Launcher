@@ -3073,7 +3073,8 @@ function openSearch(q){
   if(!q) return;
   addSearchHistory(q);
   closeSearchModal();
-  const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(q);
+  /* Google with igu=1 allows iframe embedding */
+  const searchUrl = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q);
   goToSection('browser');
   openNewTab(searchUrl);
 }
