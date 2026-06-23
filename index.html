@@ -382,7 +382,7 @@
   .suggest-list{
     position:absolute;
     bottom:calc(100% + 8px);
-    left:0;right:0;
+    left:14px;right:14px;
     background:var(--card);
     border-radius:16px;
     overflow:hidden;
@@ -402,19 +402,25 @@
   .suggest-list .item:last-child{border-bottom:none;}
   .suggest-list .item:active{background:var(--card2);}
   .suggest-list .item::before{content:'🔍';font-size:12px;opacity:.45;}
+  /* gradient border wrapper */
+  .search-box-wrap{
+    background:linear-gradient(135deg,#ff6b8a 0%,#a855f7 50%,#3b82f6 100%);
+    border-radius:999px;
+    padding:2px;
+    box-shadow:0 4px 14px rgba(168,85,247,.3);
+  }
   .search-box{
     display:flex;
     align-items:center;
     background:var(--card);
     border-radius:999px;
     padding:6px 6px 6px 16px;
-    box-shadow:0 2px 8px rgba(0,0,0,.1);
-    border:1px solid var(--border);
+    border:none;
   }
   .search-g-logo{
     font-size:17px;font-weight:900;
     margin-right:4px;flex-shrink:0;
-    background:linear-gradient(135deg,#4285f4,#34a853,#fbbc05,#ea4335);
+    background:linear-gradient(135deg,#ff6b8a,#a855f7,#3b82f6);
     -webkit-background-clip:text;background-clip:text;
     color:transparent;
   }
@@ -429,7 +435,7 @@
   }
   .search-box input::placeholder{color:var(--sub);}
   .search-box button{
-    background:var(--accent);
+    background:linear-gradient(135deg,#ff6b8a,#a855f7,#3b82f6);
     color:#fff;
     border:none;
     border-radius:999px;
@@ -1225,11 +1231,14 @@
 </div><!-- end pager -->
 
 <div class="search-bar-fixed" id="searchBarFixed">
-  <form class="search-box" id="searchForm" autocomplete="off">
-    <span class="search-g-logo">G</span>
-    <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off" readonly>
-    <button type="submit">🔍</button>
-  </form>
+  <div class="suggest-list" id="suggestList"></div>
+  <div class="search-box-wrap">
+    <form class="search-box" id="searchForm" autocomplete="off">
+      <span class="search-g-logo">G</span>
+      <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off" readonly>
+      <button type="submit">🔍</button>
+    </form>
+  </div>
 </div>
 
 <!-- search modal -->
