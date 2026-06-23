@@ -1993,7 +1993,7 @@ function makeLinkCard(item){
     }
   }, {passive:false});
 
-  card.addEventListener('touchend', function(){
+  card.addEventListener('touchend', function(e){
     clearTimeout(longPressTimer);
     if(dragMode && dragSrcId === item.id){
       card.classList.remove('dragging');
@@ -2003,15 +2003,24 @@ function makeLinkCard(item){
     if(!dragMode && !touchMoved){
       if(item.url){
         if(item.browser === 'external'){
+          e.preventDefault();
           window.open(item.url, '_blank');
         }else if(item.browser === 'direct'){
-          location.href = item.url;
+          e.preventDefault();
+          setTimeout(function(){ location.href = item.url; }, 0);
         }else{
           launchApp(item.url);
         }
       }else{
         openLinkEdit(item.id);
       }
+    }
+  });
+
+  card.addEventListener('click', function(e){
+    if(item.browser === 'external' || item.browser === 'direct'){
+      e.preventDefault();
+      e.stopPropagation();
     }
   });
 
