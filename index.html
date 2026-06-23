@@ -50,7 +50,7 @@
     height:100%;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 80px) 14px;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 90px) 14px;
   }
   .wrap{max-width:480px;margin:0 auto;}
 
@@ -372,12 +372,12 @@
   /* fixed bottom search bar */
   .search-bar-fixed{
     position:fixed;
-    bottom:calc(env(safe-area-inset-bottom) + 12px);
-    left:50%;transform:translateX(-50%);
-    width:calc(100% - 28px);
-    max-width:452px;
+    bottom:0;
+    left:0;right:0;
     z-index:40;
     transition:bottom .15s;
+    background:var(--bg);
+    padding:8px 14px calc(env(safe-area-inset-bottom) + 10px);
   }
   .suggest-list{
     position:absolute;
@@ -408,8 +408,7 @@
     background:var(--card);
     border-radius:999px;
     padding:6px 6px 6px 16px;
-    box-shadow:0 4px 20px rgba(0,0,0,.18);
-    backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
     border:1px solid var(--border);
   }
   .search-g-logo{
