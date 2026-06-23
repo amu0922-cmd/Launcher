@@ -1235,7 +1235,7 @@
   <div class="search-box-wrap">
     <form class="search-box" id="searchForm" autocomplete="off">
       <span class="search-g-logo">G</span>
-      <input type="text" id="searchInput" placeholder="Google で検索" autocomplete="off" readonly>
+      <input type="text" id="searchInput" placeholder="🦆 検索" autocomplete="off" readonly>
       <button type="submit">🔍</button>
     </form>
   </div>
@@ -1246,7 +1246,7 @@
   <div class="search-modal-bar">
     <button class="search-modal-back" id="searchModalBack">←</button>
     <div class="search-modal-input-wrap">
-      <input type="text" id="searchModalInput" placeholder="Google で検索" autocomplete="off">
+      <input type="text" id="searchModalInput" placeholder="🦆 DuckDuckGo で検索" autocomplete="off">
     </div>
     <button class="search-modal-go" id="searchModalGo">🔍</button>
   </div>
@@ -3073,8 +3073,7 @@ function openSearch(q){
   if(!q) return;
   addSearchHistory(q);
   closeSearchModal();
-  /* Google with igu=1 allows iframe embedding */
-  const searchUrl = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(q);
+  const searchUrl = 'https://duckduckgo.com/?q=' + encodeURIComponent(q) + '&kl=jp-jp';
   goToSection('browser');
   openNewTab(searchUrl);
 }
