@@ -3074,7 +3074,8 @@ function openSearch(q){
   addSearchHistory(q);
   closeSearchModal();
   const searchUrl = 'https://www.google.com/search?q=' + encodeURIComponent(q);
-  openInBrowser(searchUrl);
+  goToSection('browser');
+  openNewTab(searchUrl);
 }
 
 function makeTrendItem(icon, text){
