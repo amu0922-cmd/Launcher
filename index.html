@@ -3120,10 +3120,12 @@ function loadTrends(){
 async function fetchSuggestions(query){
   if(!query){ suggestSection.style.display = 'none'; return; }
   try{
+    /* try direct fetch first */
     const url = 'https://suggestqueries.google.com/complete/search?client=firefox&hl=ja&q=' + encodeURIComponent(query);
-    const res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
-    const json = await res.json();
-    const data = JSON.parse(json.contents);
+    const res = await fetch(url);
+    const text = await res.text();
+    /* response is ["query",[...suggestions...]] */
+    const data = JSON.parse(text);
     const items = data && data[1] ? data[1] : [];
     suggestList.innerHTML = '';
     if(items.length){
@@ -3135,7 +3137,9 @@ async function fetchSuggestions(query){
       suggestSection.style.display = 'none';
     }
   }catch(e){
-    suggestSection.style.display = 'none';
+    /* fallback: show error in suggest area for debugging */
+    suggestSection.style.display = '';
+    suggestList.innerHTML = '<div style="padding:8px 14px;font-size:11px;color:var(--sub);">サジェスト取得エラー: ' + e.message + '</div>';
   }
 }
 
