@@ -1251,16 +1251,16 @@
     <button class="search-modal-go" id="searchModalGo">🔍</button>
   </div>
   <div class="search-modal-body">
+    <div id="suggestSection" style="display:none;">
+      <div class="search-trend-head">💡 候補</div>
+      <div id="suggestList" class="trend-list"></div>
+    </div>
     <div id="searchHistorySection" style="display:none;">
       <div class="search-trend-head" style="display:flex;align-items:center;justify-content:space-between;">
         <span>🕐 検索履歴</span>
         <button id="clearSearchHistoryBtn" style="background:none;border:none;color:var(--sub);font-size:11px;">全削除</button>
       </div>
       <div id="searchHistoryList" class="trend-list"></div>
-    </div>
-    <div id="suggestSection" style="display:none;">
-      <div class="search-trend-head">💡 候補</div>
-      <div id="suggestList" class="trend-list"></div>
     </div>
     <div class="search-trend-head">🔥 急上昇ワード</div>
     <div id="trendList" class="trend-list"></div>
@@ -3117,12 +3117,13 @@ function loadTrends(){
   document.body.appendChild(script);
 }
 
-function fetchSuggestions(query){
+async function fetchSuggestions(query){
   if(!query){ suggestSection.style.display = 'none'; return; }
-  const cbName = '__sugg_' + Date.now();
-  const script = document.createElement('script');
-  function cleanup(){ delete window[cbName]; if(script.parentNode) script.parentNode.removeChild(script); }
-  window[cbName] = function(data){
+  try{
+    const url = 'https://suggestqueries.google.com/complete/search?client=firefox&hl=ja&q=' + encodeURIComponent(query);
+    const res = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
+    const json = await res.json();
+    const data = JSON.parse(json.contents);
     const items = data && data[1] ? data[1] : [];
     suggestList.innerHTML = '';
     if(items.length){
@@ -3133,11 +3134,9 @@ function fetchSuggestions(query){
     }else{
       suggestSection.style.display = 'none';
     }
-    cleanup();
-  };
-  script.onerror = cleanup;
-  script.src = 'https://suggestqueries.google.com/complete/search?client=chrome&jsonp=' + cbName + '&hl=ja&q=' + encodeURIComponent(query);
-  document.body.appendChild(script);
+  }catch(e){
+    suggestSection.style.display = 'none';
+  }
 }
 
 searchModalInput.addEventListener('input', function(){
