@@ -3120,6 +3120,9 @@ function loadTrends(){
 function fetchSuggestions(query){
   if(!query){ suggestSection.style.display = 'none'; suggestList.innerHTML = ''; return; }
   document.querySelectorAll('script[data-suggest]').forEach(function(s){ s.remove(); });
+  /* show loading */
+  suggestSection.style.display = '';
+  suggestList.innerHTML = '<div style="padding:8px 14px;font-size:12px;color:var(--sub);">読み込み中...</div>';
   const cbName = '__sg_' + Date.now();
   const script = document.createElement('script');
   script.dataset.suggest = '1';
@@ -3137,7 +3140,10 @@ function fetchSuggestions(query){
     }
     cleanup();
   };
-  script.onerror = function(){ cleanup(); };
+  script.onerror = function(){
+    suggestList.innerHTML = '<div style="padding:8px 14px;font-size:12px;color:var(--sub);">取得失敗</div>';
+    cleanup();
+  };
   script.src = 'https://suggestqueries.google.com/complete/search?client=chrome&jsonp=' + cbName + '&hl=ja&q=' + encodeURIComponent(query);
   document.body.appendChild(script);
 }
@@ -3146,20 +3152,18 @@ let isComposing = false;
 searchModalInput.addEventListener('compositionstart', function(){ isComposing = true; });
 searchModalInput.addEventListener('compositionend', function(){
   isComposing = false;
-  const q = searchModalInput.value.trim();
   clearTimeout(suggestTimer);
-  if(!q){ suggestSection.style.display = 'none'; return; }
-  fetchSuggestions(q);
+  const q = searchModalInput.value.trim();
+  if(q) fetchSuggestions(q);
+  else{ suggestSection.style.display = 'none'; }
 });
-
 searchModalInput.addEventListener('input', function(){
-  const q = searchModalInput.value.trim();
   clearTimeout(suggestTimer);
+  const q = searchModalInput.value.trim();
   if(!q){ suggestSection.style.display = 'none'; suggestList.innerHTML = ''; return; }
-  if(isComposing) return; /* wait for IME confirmation */
+  if(isComposing) return;
   suggestTimer = setTimeout(function(){ fetchSuggestions(q); }, 300);
 });
-
 searchModalInput.addEventListener('keydown', function(e){
   if(e.key === 'Enter') openSearch(searchModalInput.value.trim());
 });
