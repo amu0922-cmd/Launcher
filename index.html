@@ -3063,6 +3063,7 @@ function openSearchModal(){
   loadTrends();
 }
 function closeSearchModal(){
+  stopSuggestPoll();
   searchModal.style.display = 'none';
   searchModalInput.value = '';
   suggestSection.style.display = 'none';
@@ -3148,22 +3149,28 @@ function fetchSuggestions(query){
   document.body.appendChild(script);
 }
 
-let isComposing = false;
-searchModalInput.addEventListener('compositionstart', function(){ isComposing = true; });
-searchModalInput.addEventListener('compositionend', function(){
-  isComposing = false;
-  clearTimeout(suggestTimer);
-  const q = searchModalInput.value.trim();
-  if(q) fetchSuggestions(q);
-  else{ suggestSection.style.display = 'none'; }
-});
-searchModalInput.addEventListener('input', function(){
-  clearTimeout(suggestTimer);
-  const q = searchModalInput.value.trim();
-  if(!q){ suggestSection.style.display = 'none'; suggestList.innerHTML = ''; return; }
-  if(isComposing) return;
-  suggestTimer = setTimeout(function(){ fetchSuggestions(q); }, 300);
-});
+let lastSuggestQuery = '';
+let suggestPollInterval = null;
+
+function startSuggestPoll(){
+  if(suggestPollInterval) return;
+  suggestPollInterval = setInterval(function(){
+    const q = searchModalInput.value.trim();
+    if(q !== lastSuggestQuery){
+      lastSuggestQuery = q;
+      if(q) fetchSuggestions(q);
+      else{ suggestSection.style.display = 'none'; suggestList.innerHTML = ''; }
+    }
+  }, 500);
+}
+function stopSuggestPoll(){
+  clearInterval(suggestPollInterval);
+  suggestPollInterval = null;
+  lastSuggestQuery = '';
+}
+
+searchModalInput.addEventListener('focus', startSuggestPoll);
+searchModalInput.addEventListener('blur', stopSuggestPoll);
 searchModalInput.addEventListener('keydown', function(e){
   if(e.key === 'Enter') openSearch(searchModalInput.value.trim());
 });
