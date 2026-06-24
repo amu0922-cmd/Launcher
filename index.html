@@ -154,6 +154,29 @@
     -webkit-user-select:none;
     white-space:nowrap;
   }
+  .iframe-play-overlay{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:rgba(0,0,0,.35);
+    border-radius:inherit;
+    font-size:40px;
+    color:#fff;
+    pointer-events:none;
+  }
+  .iframe-player{
+    position:absolute;
+    inset:0;
+    border-radius:inherit;
+    overflow:hidden;
+    z-index:5;
+    background:#000;
+  }
+  .iframe-player iframe{
+    width:100%;height:100%;border:none;
+  }
   .browser-clock-resize{
     position:absolute;
     right:-4px;bottom:-4px;
@@ -1313,6 +1336,8 @@
       <button class="layout-btn" id="browserExternal" data-browser="external">🔗 外部</button>
       <button class="layout-btn" id="browserDirect" data-browser="direct">🚀 直接</button>
     </div>
+    <label>🎬 動画埋め込み(任意・iframeコードを貼り付け)</label>
+    <textarea id="linkIframe" placeholder='<iframe src="..." ...></iframe>' style="width:100%;height:72px;border-radius:10px;border:1px solid var(--border);padding:8px;font-size:12px;background:var(--card2);color:var(--text);resize:none;box-sizing:border-box;"></textarea>
     <label>画像 <span id="thumbStatus" style="color:var(--sub);font-size:11px;"></span></label>
     <div class="link-preview" id="linkPreview">画像未設定</div>
     <div class="sheet-actions">
@@ -1959,6 +1984,14 @@ function makeLinkCard(item){
     e.stopPropagation();
     e.preventDefault();
   });
+  /* iframe play button overlay */
+  if(item.iframeCode){
+    const playOverlay = document.createElement('div');
+    playOverlay.className = 'iframe-play-overlay';
+    playOverlay.innerHTML = '▶';
+    card.appendChild(playOverlay);
+  }
+
   card.appendChild(editBtn);
 
   card.addEventListener('contextmenu', function(e){ e.preventDefault(); });
@@ -2013,15 +2046,33 @@ function makeLinkCard(item){
       return;
     }
     if(!dragMode && !touchMoved){
-      if(item.url){
+      if(item.iframeCode){
+        e.preventDefault();
+        /* show iframe player inline */
+        const existing = card.querySelector('.iframe-player');
+        if(existing){ existing.remove(); return; }
+        const player = document.createElement('div');
+        player.className = 'iframe-player';
+        player.innerHTML = item.iframeCode;
+        /* make iframe fill the player div */
+        const iframeEl = player.querySelector('iframe');
+        if(iframeEl){
+          iframeEl.style.width = '100%';
+          iframeEl.style.height = '100%';
+          iframeEl.removeAttribute('width');
+          iframeEl.removeAttribute('height');
+        }
+        card.appendChild(player);
+        /* close on tap outside player */
+        player.addEventListener('click', function(ev){ ev.stopPropagation(); });
+      }else if(item.url){
+      }else if(item.url){
         if(item.browser === 'external'){
           e.preventDefault();
           window.open(item.url, '_blank');
         }else if(item.browser === 'direct'){
           e.preventDefault();
-          /* Use Android intent to force open in default browser outside PWA */
           try{
-            const encoded = encodeURIComponent(item.url);
             const intentUrl = 'intent://' + item.url.replace(/^https?:\/\//, '') +
               '#Intent;scheme=' + (item.url.startsWith('https') ? 'https' : 'http') +
               ';action=android.intent.action.VIEW' +
@@ -2183,6 +2234,7 @@ function openLinkAdd(){
   linkTitleInput.value = '';
   linkCategoryInput.value = (currentCategory !== 'すべて' && currentCategory !== '未分類') ? currentCategory : '';
   linkUrlInput.value = '';
+  document.getElementById('linkIframe').value = '';
   linkDeleteRow.style.display = 'none';
   setLayoutToggle('banner');
   setBrowserToggle('internal');
@@ -2199,6 +2251,7 @@ function openLinkEdit(id){
   linkTitleInput.value = item.title || '';
   linkCategoryInput.value = item.category || '';
   linkUrlInput.value = item.url || '';
+  document.getElementById('linkIframe').value = item.iframeCode || '';
   linkDeleteRow.style.display = 'flex';
   setLayoutToggle(item.layout || 'banner');
   setBrowserToggle(item.browser || 'internal');
@@ -2241,6 +2294,7 @@ document.getElementById('linkSave').addEventListener('click', function(){
   const category = linkCategoryInput.value.trim();
   const layout = pickedLayout || 'banner';
   const browser = pickedBrowser || 'internal';
+  const iframeCode = document.getElementById('linkIframe').value.trim();
   const before = JSON.stringify(bannerLinks);
   if(editingLinkId){
     const item = bannerLinks.find(function(a){ return a.id === editingLinkId; });
@@ -2250,8 +2304,9 @@ document.getElementById('linkSave').addEventListener('click', function(){
     item.layout = layout;
     item.browser = browser;
     item.image = pickedLinkImage;
+    item.iframeCode = iframeCode || null;
   }else{
-    if(!pickedLinkImage && !url) return;
+    if(!pickedLinkImage && !url && !iframeCode) return;
     bannerLinks.push({
       id: 'link_' + Date.now(),
       url: url,
@@ -2259,7 +2314,8 @@ document.getElementById('linkSave').addEventListener('click', function(){
       category: category,
       layout: layout,
       browser: browser,
-      image: pickedLinkImage
+      image: pickedLinkImage,
+      iframeCode: iframeCode || null
     });
   }
   if(!saveBannerLinks()){
