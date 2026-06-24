@@ -2066,7 +2066,6 @@ function makeLinkCard(item){
         /* close on tap outside player */
         player.addEventListener('click', function(ev){ ev.stopPropagation(); });
       }else if(item.url){
-      }else if(item.url){
         if(item.browser === 'external'){
           e.preventDefault();
           window.open(item.url, '_blank');
@@ -2195,10 +2194,64 @@ async function fetchLinkMeta(url){
   return null;
 }
 
+function extractIframeSrc(iframeCode){
+  if(!iframeCode) return null;
+  const m = iframeCode.match(/src=["']([^"']+)["']/i);
+  return m ? m[1] : null;
+}
+
+function getVideoThumbUrl(src){
+  if(!src) return null;
+  /* YouTube */
+  let m = src.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
+  if(!m) m = src.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+  if(m) return 'https://img.youtube.com/vi/' + m[1] + '/hqdefault.jpg';
+  /* Vimeo */
+  m = src.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if(m) return 'https://vumbnail.com/' + m[1] + '.jpg';
+  return null;
+}
+
 async function autoFetchThumb(){
+  const iframeCode = document.getElementById('linkIframe').value.trim();
   const url = linkUrlInput.value.trim();
-  if(!url){ return; }
   thumbStatus.textContent = '取得中...';
+
+  /* try iframe src thumbnail first */
+  if(iframeCode){
+    const src = extractIframeSrc(iframeCode);
+    const thumbUrl = getVideoThumbUrl(src);
+    if(thumbUrl){
+      /* convert to base64 via fetch */
+      try{
+        const res = await fetch(thumbUrl);
+        const blob = await res.blob();
+        const reader = new FileReader();
+        reader.onload = function(ev){
+          pickedLinkImage = ev.target.result;
+          showLinkPreview(ev.target.result);
+          thumbStatus.textContent = '✓ 取得成功';
+          setTimeout(function(){ thumbStatus.textContent = ''; }, 3000);
+        };
+        reader.readAsDataURL(blob);
+        return;
+      }catch(e){}
+    }
+    /* fallback: microlink on iframe src */
+    if(src){
+      const meta = await fetchLinkMeta(src);
+      if(meta && meta.image){
+        pickedLinkImage = meta.image;
+        showLinkPreview(meta.image);
+        thumbStatus.textContent = '✓ 取得成功';
+        setTimeout(function(){ thumbStatus.textContent = ''; }, 3000);
+        return;
+      }
+    }
+  }
+
+  /* fallback: use URL */
+  if(!url){ thumbStatus.textContent = ''; return; }
   const meta = await fetchLinkMeta(url);
   if(meta){
     if(meta.image){
