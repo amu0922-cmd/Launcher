@@ -1251,10 +1251,7 @@
     <button class="search-modal-go" id="searchModalGo">🔍</button>
   </div>
   <div class="search-modal-body">
-    <div id="suggestSection" style="display:none;">
-      <div class="search-trend-head">💡 候補</div>
-      <div id="suggestList" class="trend-list"></div>
-    </div>
+    <div id="suggestSection" style="display:none;"></div>
     <div id="searchHistorySection" style="display:none;">
       <div class="search-trend-head" style="display:flex;align-items:center;justify-content:space-between;">
         <span>🕐 検索履歴</span>
@@ -3122,60 +3119,68 @@ function loadTrends(){
 }
 
 function fetchSuggestions(query){
-  if(!query){ suggestSection.style.display = 'none'; suggestList.innerHTML = ''; return; }
-  suggestPending = true;
-  suggestSection.style.display = '';
-  suggestList.innerHTML = '<div style="padding:6px 14px;font-size:12px;color:var(--sub);">読み込み中...</div>';
+  suggestSection.style.display = 'none';
+  suggestList.innerHTML = '';
+}
 
-  const cbName = '__sg_' + Date.now();
-  const script = document.createElement('script');
-  function cleanup(){ suggestPending = false; delete window[cbName]; if(script.parentNode) script.parentNode.removeChild(script); }
-  window[cbName] = function(data){
-    suggestList.innerHTML = '';
-    let items = [];
-    if(data && data.ResultSet && data.ResultSet.Result){
-      items = data.ResultSet.Result.map(function(r){ return r.Key; });
-    }else if(data && Array.isArray(data[1])){
-      items = data[1];
-    }
-    if(items.length){
-      items.slice(0, 6).forEach(function(t){
-        suggestList.appendChild(makeTrendItem('🔍', t));
-      });
-    }else{
-      suggestSection.style.display = 'none';
-    }
-    cleanup();
-  };
-  script.onerror = function(){
-    suggestSection.style.display = 'none';
-    cleanup();
-  };
-  script.src = 'https://search.yahoo.co.jp/sugg/ss?p=' + encodeURIComponent(query) + '&ei=UTF-8&callback=' + cbName;
-  document.body.appendChild(script);
+function filterHistoryByQuery(query){
+  const histSection = document.getElementById('searchHistorySection');
+  const histList = document.getElementById('searchHistoryList');
+  if(!histSection || !histList) return;
+  if(!query){
+    renderSearchHistory();
+    return;
+  }
+  const all = loadSearchHistory();
+  const filtered = all.filter(function(h){ return h.toLowerCase().indexOf(query.toLowerCase()) !== -1; });
+  histList.innerHTML = '';
+  if(!filtered.length){ histSection.style.display = 'none'; return; }
+  histSection.style.display = '';
+  filtered.forEach(function(q){
+    const row = document.createElement('div');
+    row.className = 'trend-item';
+    row.style.justifyContent = 'space-between';
+    const left = document.createElement('div');
+    left.style.cssText = 'display:flex;align-items:center;gap:12px;flex:1;min-width:0;';
+    const icon = document.createElement('span');
+    icon.className = 'trend-icon';
+    icon.textContent = '🕐';
+    const text = document.createElement('span');
+    text.className = 'trend-text';
+    text.textContent = q;
+    text.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    left.appendChild(icon); left.appendChild(text);
+    left.addEventListener('click', function(){ openSearch(q); });
+    const del = document.createElement('button');
+    del.style.cssText = 'background:none;border:none;color:var(--sub);font-size:16px;padding:4px 8px;flex-shrink:0;';
+    del.textContent = '✕';
+    del.addEventListener('click', function(e){
+      e.stopPropagation();
+      saveSearchHistory(loadSearchHistory().filter(function(h){ return h !== q; }));
+      filterHistoryByQuery(searchModalInput.value.trim());
+    });
+    row.appendChild(left); row.appendChild(del);
+    histList.appendChild(row);
+  });
 }
 
 let lastSuggestQuery = '';
 let suggestPollInterval = null;
-let suggestPending = false;
 
 function startSuggestPoll(){
   stopSuggestPoll();
   suggestPollInterval = setInterval(function(){
-    if(suggestPending) return;
     const q = searchModalInput.value.trim();
     if(q !== lastSuggestQuery){
       lastSuggestQuery = q;
-      if(q) fetchSuggestions(q);
-      else{ suggestSection.style.display = 'none'; suggestList.innerHTML = ''; }
+      filterHistoryByQuery(q);
     }
-  }, 800);
+  }, 400);
 }
 function stopSuggestPoll(){
   clearInterval(suggestPollInterval);
   suggestPollInterval = null;
   lastSuggestQuery = '';
-  suggestPending = false;
 }
 
 searchModalInput.addEventListener('focus', startSuggestPoll);
