@@ -1,4 +1,4 @@
-const CACHE_NAME = 'launcher-cache-v133';
+const CACHE_NAME = 'launcher-cache-v135';
 const ASSETS = [
   './index.html',
   './manifest.json',

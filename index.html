@@ -2134,6 +2134,35 @@ const linkSheetTitle = document.getElementById('linkSheetTitle');
 const linkTitleInput = document.getElementById('linkTitle');
 const linkCategoryInput = document.getElementById('linkCategory');
 const linkUrlInput = document.getElementById('linkUrl');
+
+function urlToIframeCode(url){
+  /* YouTube */
+  let m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  if(m) return '<iframe src="https://www.youtube.com/embed/' + m[1] + '" frameborder="0" allowfullscreen></iframe>';
+  /* Vimeo */
+  m = url.match(/vimeo\.com\/(\d+)/);
+  if(m) return '<iframe src="https://player.vimeo.com/video/' + m[1] + '" frameborder="0" allowfullscreen></iframe>';
+  /* ニコニコ動画 */
+  m = url.match(/nicovideo\.jp\/watch\/((?:sm|nm|so)\d+)/);
+  if(m) return '<iframe src="https://embed.nicovideo.jp/watch/' + m[1] + '" frameborder="0" allowfullscreen></iframe>';
+  return null;
+}
+
+linkUrlInput.addEventListener('input', function(){
+  let val = linkUrlInput.value.trim();
+  /* extract URL from BBCode [url=...]...[/url] */
+  const bbMatch = val.match(/\[url=([^\]]+)\]/i);
+  if(bbMatch){
+    val = bbMatch[1].trim();
+    linkUrlInput.value = val;
+  }
+  /* auto-convert to iframe */
+  const iframeTextarea = document.getElementById('linkIframe');
+  if(!iframeTextarea.value.trim()){
+    const code = urlToIframeCode(val);
+    if(code) iframeTextarea.value = code;
+  }
+});
 const linkFileInput = document.getElementById('linkFile');
 
 /* layout toggle buttons */
