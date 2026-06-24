@@ -3058,7 +3058,10 @@ let suggestTimer = null;
 
 function openSearchModal(){
   searchModal.style.display = 'flex';
-  setTimeout(function(){ searchModalInput.focus(); }, 80);
+  setTimeout(function(){
+    searchModalInput.focus();
+    startSuggestPoll();
+  }, 80);
   renderSearchHistory();
   loadTrends();
 }
