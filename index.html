@@ -3120,19 +3120,16 @@ function loadTrends(){
 
 function fetchSuggestions(query){
   if(!query){ suggestSection.style.display = 'none'; suggestList.innerHTML = ''; return; }
-  document.querySelectorAll('script[data-suggest]').forEach(function(s){ s.remove(); });
-  /* show loading */
   suggestSection.style.display = '';
-  suggestList.innerHTML = '<div style="padding:8px 14px;font-size:12px;color:var(--sub);">読み込み中...</div>';
+  suggestList.innerHTML = '<div style="padding:6px 14px;font-size:12px;color:var(--sub);">読み込み中...</div>';
+
   const cbName = '__sg_' + Date.now();
   const script = document.createElement('script');
-  script.dataset.suggest = '1';
   function cleanup(){ delete window[cbName]; if(script.parentNode) script.parentNode.removeChild(script); }
   window[cbName] = function(data){
-    const items = (data && Array.isArray(data[1])) ? data[1] : [];
     suggestList.innerHTML = '';
+    const items = data && data[1] ? data[1] : [];
     if(items.length){
-      suggestSection.style.display = '';
       items.slice(0, 6).forEach(function(t){
         suggestList.appendChild(makeTrendItem('🔍', t));
       });
@@ -3142,9 +3139,10 @@ function fetchSuggestions(query){
     cleanup();
   };
   script.onerror = function(){
-    suggestList.innerHTML = '<div style="padding:8px 14px;font-size:12px;color:var(--sub);">取得失敗</div>';
+    suggestList.innerHTML = '<div style="padding:6px 14px;font-size:12px;color:red;">取得失敗</div>';
     cleanup();
   };
+  /* same URL pattern as loadTrends which works */
   script.src = 'https://suggestqueries.google.com/complete/search?client=chrome&jsonp=' + cbName + '&hl=ja&q=' + encodeURIComponent(query);
   document.body.appendChild(script);
 }
