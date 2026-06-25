@@ -4090,20 +4090,21 @@ loadFeed();
 /* ---- refresh button ---- */
 document.getElementById('refreshBtn').addEventListener('click', function(){
   if('serviceWorker' in navigator && 'caches' in window){
-    Promise.all([
-      navigator.serviceWorker.getRegistrations().then(function(regs){
-        return Promise.all(regs.map(function(r){ return r.update(); }));
-      }),
-      caches.keys().then(function(keys){
-        return Promise.all(keys.map(function(k){ return caches.delete(k); }));
-      })
-    ]).then(function(){
-      location.reload();
+    caches.keys().then(function(keys){
+      return Promise.all(keys.map(function(k){ return caches.delete(k); }));
+    }).then(function(){
+      return navigator.serviceWorker.getRegistrations();
+    }).then(function(regs){
+      regs.forEach(function(r){
+        if(r.waiting) r.waiting.postMessage('skipWaiting');
+        r.update();
+      });
+      setTimeout(function(){ location.reload(true); }, 300);
     }).catch(function(){
-      location.reload();
+      location.reload(true);
     });
   }else{
-    location.reload();
+    location.reload(true);
   }
 });
 
