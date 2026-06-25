@@ -1,6 +1,6 @@
-const CACHE_NAME = 'launcher-cache-v139';
-const ASSETS = [
-  './index.html',
+const CACHE_NAME = 'launcher-cache-v140';
+/* index.htmlはキャッシュしない — 常に最新版をネットワークから取得 */
+const STATIC_ASSETS = [
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -11,11 +11,10 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', function(event){
-  /* skip waiting immediately so new SW takes over right away */
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then(function(cache){
-      return cache.addAll(ASSETS);
+      return cache.addAll(STATIC_ASSETS);
     })
   );
 });
@@ -23,9 +22,7 @@ self.addEventListener('install', function(event){
 self.addEventListener('activate', function(event){
   event.waitUntil(
     Promise.all([
-      /* claim all clients immediately */
       self.clients.claim(),
-      /* delete old caches */
       caches.keys().then(function(keys){
         return Promise.all(
           keys.filter(function(k){ return k !== CACHE_NAME; })
@@ -38,27 +35,31 @@ self.addEventListener('activate', function(event){
 
 self.addEventListener('fetch', function(event){
   const url = event.request.url;
-  /* don't cache external API calls */
-  if(url.indexOf(location.origin) !== 0){
+  /* 外部APIはスルー */
+  if(url.indexOf(self.location.origin) !== 0) return;
+
+  /* index.htmlは常にネットワーク優先、失敗時はキャッシュ */
+  if(url.endsWith('/') || url.includes('index.html')){
+    event.respondWith(
+      fetch(event.request, {cache: 'no-cache'}).catch(function(){
+        return caches.match(event.request);
+      })
+    );
     return;
   }
-  /* network first: always try to get fresh content */
+
+  /* その他の静的ファイルはキャッシュ優先 */
   event.respondWith(
-    fetch(event.request).then(function(response){
-      /* update cache with fresh response */
-      const clone = response.clone();
-      caches.open(CACHE_NAME).then(function(cache){
-        cache.put(event.request, clone);
+    caches.match(event.request).then(function(cached){
+      return cached || fetch(event.request).then(function(res){
+        const clone = res.clone();
+        caches.open(CACHE_NAME).then(function(cache){ cache.put(event.request, clone); });
+        return res;
       });
-      return response;
-    }).catch(function(){
-      /* offline fallback: use cache */
-      return caches.match(event.request);
     })
   );
 });
 
-/* handle skipWaiting message from page */
 self.addEventListener('message', function(event){
   if(event.data === 'skipWaiting') self.skipWaiting();
 });
