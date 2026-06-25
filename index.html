@@ -3341,8 +3341,25 @@ let searchDropdown = null;
 function createSearchDropdown(){
   if(searchDropdown) return;
   searchDropdown = document.createElement('div');
-  searchDropdown.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:39;background:var(--bg);border-top:1px solid var(--border);max-height:55vh;overflow-y:auto;-webkit-overflow-scrolling:touch;';
-  document.body.appendChild(searchDropdown);
+  searchDropdown.style.cssText = [
+    'position:fixed',
+    'left:0',
+    'right:0',
+    'z-index:38',
+    'background:var(--bg)',
+    'border-top:1px solid var(--border)',
+    'max-height:55vh',
+    'overflow-y:auto',
+    '-webkit-overflow-scrolling:touch',
+    'box-shadow:0 -4px 16px rgba(0,0,0,.12)'
+  ].join(';');
+  document.body.insertBefore(searchDropdown, searchBarFixed);
+}
+
+function positionDropdown(){
+  if(!searchDropdown) return;
+  const barRect = searchBarFixed.getBoundingClientRect();
+  searchDropdown.style.bottom = (window.innerHeight - barRect.top) + 'px';
 }
 
 function removeSearchDropdown(){
@@ -3393,9 +3410,8 @@ function renderSearchDropdown(query){
     loadInlineTrends(tList);
   }
 
-  /* adjust bottom of search bar */
-  const h = searchDropdown.getBoundingClientRect().height;
-  searchBarFixed.style.bottom = h + 'px';
+  /* position above search bar */
+  requestAnimationFrame(positionDropdown);
 }
 
 function loadInlineTrends(tList){
@@ -3426,7 +3442,6 @@ function doSearch(q){
   searchInput.value = '';
   searchInput.blur();
   removeSearchDropdown();
-  searchBarFixed.style.bottom = '';
   window.open('https://www.google.com/search?q=' + encodeURIComponent(q), '_blank');
 }
 
