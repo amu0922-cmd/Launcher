@@ -3345,13 +3345,12 @@ function createSearchDropdown(){
     'position:fixed',
     'left:0',
     'right:0',
+    'top:0',
     'z-index:38',
     'background:var(--bg)',
-    'border-top:1px solid var(--border)',
-    'max-height:55vh',
     'overflow-y:auto',
     '-webkit-overflow-scrolling:touch',
-    'box-shadow:0 -4px 16px rgba(0,0,0,.12)'
+    'box-shadow:0 4px 16px rgba(0,0,0,.12)'
   ].join(';');
   document.body.insertBefore(searchDropdown, searchBarFixed);
 }
@@ -3359,6 +3358,7 @@ function createSearchDropdown(){
 function positionDropdown(){
   if(!searchDropdown) return;
   const barRect = searchBarFixed.getBoundingClientRect();
+  /* fill from top of screen down to just above the search bar */
   searchDropdown.style.bottom = (window.innerHeight - barRect.top) + 'px';
 }
 
