@@ -3451,6 +3451,12 @@ searchInput.addEventListener('focus', function(){
 searchInput.addEventListener('input', function(){
   renderSearchDropdown(searchInput.value);
 });
+searchInput.addEventListener('blur', function(){
+  /* 少し遅延してアイテムタップを有効にする */
+  setTimeout(function(){
+    removeSearchDropdown();
+  }, 200);
+});
 searchInput.addEventListener('keydown', function(e){
   if(e.key === 'Enter'){ doSearch(searchInput.value.trim()); }
 });
