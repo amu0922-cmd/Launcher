@@ -1,4 +1,4 @@
-const CACHE_NAME = 'launcher-cache-v148';
+const CACHE_NAME = 'launcher-cache-v149';
 /* index.htmlはキャッシュしない — 常に最新版をネットワークから取得 */
 const STATIC_ASSETS = [
   './manifest.json',

@@ -9,24 +9,24 @@
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
   :root{
-    --bg:#eef0f6;
-    --card:rgba(255,255,255,.6);
+    --bg:#ffffff;
+    --card:rgba(255,255,255,.9);
     --card-solid:#ffffff;
-    --card2:#f4f5fa;
-    --text:#2d2a45;
-    --sub:#9a96b3;
-    --accent:#ec4464;
-    --accent2:#ec4464;
-    --border:#e6e8f2;
+    --card2:#f0f0f0;
+    --text:#111111;
+    --sub:#666666;
+    --accent:#111111;
+    --accent2:#111111;
+    --border:#dddddd;
   }
   body.dark{
-    --bg:#1a1825;
-    --card:rgba(38,35,51,.6);
-    --card-solid:#262333;
-    --card2:#322e44;
-    --text:#f1eefb;
-    --sub:#a9a3c4;
-    --border:#3c3852;
+    --bg:#111111;
+    --card:rgba(30,30,30,.9);
+    --card-solid:#1e1e1e;
+    --card2:#2a2a2a;
+    --text:#ffffff;
+    --sub:#aaaaaa;
+    --border:#333333;
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;}
@@ -136,10 +136,10 @@
     bottom:calc(env(safe-area-inset-bottom) + 10px);
     left:14px;right:14px;
     z-index:40;
-    background:linear-gradient(135deg,#ff6b8a 0%,#a855f7 50%,#3b82f6 100%);
+    background:linear-gradient(135deg,#1a1a1a 0%,#444444 50%,#111111 100%);
     padding:6px;
     border-radius:16px;
-    box-shadow:0 4px 12px rgba(168,85,247,.35);
+    box-shadow:0 4px 12px rgba(0,0,0,.35);
     display:flex;
     align-items:center;
   }
@@ -148,7 +148,7 @@
     align-items:center;
     gap:4px;
     flex:1;
-    background:rgba(255,255,255,.15);
+    background:rgba(255,255,255,.1);
     border-radius:11px;
     padding:7px 14px;
     overflow-x:auto;
@@ -157,7 +157,7 @@
   .weather-fixed-bar-inner::-webkit-scrollbar{display:none;}
   .weather-fixed-bar .ws-day .ws-name{color:#fff;opacity:.9;}
   .weather-fixed-bar .ws-day .ws-temp{color:#fff;opacity:.85;}
-  .weather-fixed-bar .ws-reload{color:rgba(255,255,255,.75);}
+  .weather-fixed-bar .ws-reload{color:rgba(255,255,255,.6);}
 
   .weather-inline{
     display:flex;
@@ -325,10 +325,10 @@
     display:flex;
     gap:0;
     margin:8px 0 12px;
-    background:linear-gradient(135deg,#ff6b8a 0%,#a855f7 50%,#3b82f6 100%);
+    background:linear-gradient(135deg,#1a1a1a 0%,#444444 50%,#111111 100%);
     border-radius:16px;
     padding:6px;
-    box-shadow:0 4px 12px rgba(168,85,247,.3);
+    box-shadow:0 4px 12px rgba(0,0,0,.3);
     overflow-x:auto;
     -webkit-overflow-scrolling:touch;
   }
@@ -340,17 +340,17 @@
     border-radius:11px;
     border:none;
     background:transparent;
-    color:rgba(255,255,255,.75);
+    color:rgba(255,255,255,.7);
     font-size:13px;font-weight:800;
     transition:background .15s, color .15s, transform .15s;
     white-space:nowrap;
     letter-spacing:.01em;
   }
   .section-tab.active{
-    background:rgba(255,255,255,.25);
+    background:rgba(255,255,255,.2);
     color:#fff;
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-    box-shadow:0 2px 8px rgba(0,0,0,.15);
+    box-shadow:0 2px 8px rgba(0,0,0,.3);
   }
   .section-tab:not(.active):active{
     background:rgba(255,255,255,.1);
@@ -613,13 +613,13 @@
     border-bottom-color:rgba(255,255,255,.4);
   }
   /* sticky note colors cycle */
-  .category-tab:nth-child(7n+1){background:#e85d75;}
-  .category-tab:nth-child(7n+2){background:#f5a623;}
-  .category-tab:nth-child(7n+3){background:#4f8cff;}
-  .category-tab:nth-child(7n+4){background:#39b873;}
-  .category-tab:nth-child(7n+5){background:#9b6cf0;}
-  .category-tab:nth-child(7n+6){background:#30b6c9;}
-  .category-tab:nth-child(7n+0){background:#e67e3a;}
+  .category-tab:nth-child(7n+1){background:#111111;color:#fff;}
+  .category-tab:nth-child(7n+2){background:#ffffff;color:#111;border:1.5px solid #ccc;}
+  .category-tab:nth-child(7n+3){background:#111111;color:#fff;}
+  .category-tab:nth-child(7n+4){background:#ffffff;color:#111;border:1.5px solid #ccc;}
+  .category-tab:nth-child(7n+5){background:#111111;color:#fff;}
+  .category-tab:nth-child(7n+6){background:#ffffff;color:#111;border:1.5px solid #ccc;}
+  .category-tab:nth-child(7n+0){background:#111111;color:#fff;}
   .category-tab-add{
     background:transparent!important;
     color:var(--sub);
