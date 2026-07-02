@@ -50,7 +50,7 @@
     height:100%;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 20px) 14px;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 90px) 14px;
   }
   .wrap{max-width:480px;margin:0 auto;}
 
@@ -130,6 +130,43 @@
   }
 
   /* inline weather strip at top of home */
+  /* fixed bottom weather bar */
+  .weather-fixed-bar{
+    position:fixed;
+    bottom:0;
+    left:0;right:0;
+    z-index:40;
+    background:var(--bg);
+    padding:8px 14px calc(env(safe-area-inset-bottom) + 10px);
+    display:flex;
+    align-items:center;
+    gap:4px;
+  }
+  .weather-fixed-bar-inner{
+    display:flex;
+    align-items:center;
+    gap:4px;
+    flex:1;
+    background:var(--card);
+    border-radius:999px;
+    padding:8px 16px;
+    border:3px solid transparent;
+    background-clip:padding-box;
+    position:relative;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+  .weather-fixed-bar-inner::before{
+    content:'';
+    position:absolute;
+    inset:-3px;
+    border-radius:999px;
+    background:linear-gradient(135deg,#ff6b8a 0%,#a855f7 50%,#3b82f6 100%);
+    z-index:-1;
+  }
+  .weather-fixed-bar-inner::-webkit-scrollbar{display:none;}
+  .weather-fixed-bar .ws-reload{color:var(--sub);}
+
   .weather-inline{
     display:flex;
     align-items:stretch;
@@ -1135,6 +1172,14 @@
 </style>
 </head>
 <body>
+<!-- fixed bottom weather bar -->
+<div class="weather-fixed-bar" id="weatherBox">
+  <div class="weather-fixed-bar-inner">
+    <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
+    <button class="ws-reload" id="wReload" title="更新">↻</button>
+  </div>
+</div>
+
 <div class="pager" id="pager">
 <div class="pager-inner" id="pagerInner">
 
@@ -1142,14 +1187,6 @@
     <div class="ptr-indicator" id="ptrIndicator">↓</div>
 
     <div class="wrap">
-
-      <!-- weather strip above section tabs -->
-      <div class="weather-inline" id="weatherBox">
-        <div class="weather-half" style="flex:1;">
-          <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
-          <button class="ws-reload" id="wReload" title="更新">↻</button>
-        </div>
-      </div>
 
       <!-- section tabs -->
       <div class="section-tabs" id="sectionTabs">
@@ -2461,9 +2498,11 @@ function goToSection(key){
   document.querySelectorAll('.section-tab').forEach(function(btn){
     btn.classList.toggle('active', btn.dataset.sec === key);
   });
-  
+  /* show weather bar only on home */
+  const wb = document.getElementById('weatherBox');
+  if(wb) wb.style.display = key === 'home' ? '' : 'none';
+
   browserPanel.classList.toggle('visible', key === 'browser');
-  /* auto-load active tab when opening browser */
   if(key === 'browser' && activeTabId){
     const tab = btabs.find(function(t){ return t.id === activeTabId; });
     if(tab && tab.url && !tab.iframe) showFrame(tab);
