@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#ec4464">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#111111">
 <title>ホームランチャー</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -3856,22 +3859,20 @@ loadFeed();
 
 /* ---- refresh button ---- */
 document.getElementById('refreshBtn').addEventListener('click', function(){
-  if('serviceWorker' in navigator && 'caches' in window){
-    caches.keys().then(function(keys){
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(function(regs){
+      return Promise.all(regs.map(function(r){ return r.unregister(); }));
+    }).then(function(){
+      return caches.keys();
+    }).then(function(keys){
       return Promise.all(keys.map(function(k){ return caches.delete(k); }));
     }).then(function(){
-      return navigator.serviceWorker.getRegistrations();
-    }).then(function(regs){
-      regs.forEach(function(r){
-        if(r.waiting) r.waiting.postMessage('skipWaiting');
-        r.update();
-      });
-      setTimeout(function(){ location.reload(true); }, 300);
+      location.replace(location.href.split('?')[0] + '?r=' + Date.now());
     }).catch(function(){
-      location.reload(true);
+      location.replace(location.href.split('?')[0] + '?r=' + Date.now());
     });
   }else{
-    location.reload(true);
+    location.replace(location.href.split('?')[0] + '?r=' + Date.now());
   }
 });
 
