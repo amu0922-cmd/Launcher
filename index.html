@@ -1939,9 +1939,21 @@ function renderCategoryOrderList(){
     const top = document.createElement('div');
     top.className = 'category-order-item-top';
 
-    const name = document.createElement('div');
-    name.textContent = cat;
-    name.style.fontWeight = '700';
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.value = cat;
+    nameInput.spellcheck = false;
+    nameInput.style.cssText = 'flex:1;min-width:0;font-weight:700;font-size:14px;border:none;border-bottom:1px solid transparent;background:transparent;color:var(--text);padding:2px 4px;margin-right:8px;';
+    nameInput.addEventListener('focus', function(){
+      nameInput.style.borderBottomColor = 'var(--border)';
+    });
+    nameInput.addEventListener('keydown', function(e){
+      if(e.key === 'Enter'){ e.preventDefault(); nameInput.blur(); }
+    });
+    nameInput.addEventListener('blur', function(){
+      nameInput.style.borderBottomColor = 'transparent';
+      renameCategory(cat, nameInput.value);
+    });
 
     const btns = document.createElement('div');
     btns.className = 'order-btns';
@@ -1958,7 +1970,7 @@ function renderCategoryOrderList(){
 
     btns.appendChild(up);
     btns.appendChild(down);
-    top.appendChild(name);
+    top.appendChild(nameInput);
     top.appendChild(btns);
 
     /* URL input for iframe mode */
@@ -1988,6 +2000,45 @@ function renderCategoryOrderList(){
     row.appendChild(urlWrap);
     list.appendChild(row);
   });
+}
+
+function renameCategory(oldName, newNameRaw){
+  const newName = (newNameRaw || '').trim();
+  if(!newName || newName === oldName){ renderCategoryOrderList(); return; }
+  const cats = getOrderedCategories();
+  if(cats.indexOf(newName) !== -1){
+    alert('同じ名前のカテゴリが既にあります');
+    renderCategoryOrderList();
+    return;
+  }
+  /* update every link's category field */
+  bannerLinks.forEach(function(item){
+    const c = (item.category && item.category.trim()) || '未分類';
+    if(c === oldName) item.category = newName;
+  });
+  saveBannerLinks();
+
+  /* update order list */
+  const order = cats.map(function(c){ return c === oldName ? newName : c; });
+  localStorage.setItem(CATEGORY_ORDER_KEY, JSON.stringify(order));
+
+  /* migrate category URL (iframe) setting */
+  const urls = loadCategoryUrls();
+  if(Object.prototype.hasOwnProperty.call(urls, oldName)){
+    urls[newName] = urls[oldName];
+    delete urls[oldName];
+    saveCategoryUrls(urls);
+  }
+
+  /* keep current selected category pointing at the renamed one */
+  if(currentCategory === oldName){
+    currentCategory = newName;
+    localStorage.setItem(CATEGORY_KEY, newName);
+  }
+
+  renderCategoryOrderList();
+  renderCategoryTabs();
+  renderBannerLinks();
 }
 
 function moveCategory(index, dir){
