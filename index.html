@@ -53,7 +53,7 @@
     height:100%;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 14px) 14px;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 56px) 14px;
   }
   .wrap{max-width:480px;margin:0 auto;}
 
@@ -342,6 +342,11 @@
     flex-shrink:0;
   }
   .stab-btn:active{background:rgba(255,255,255,.2);}
+  .stab-btn-sm{
+    width:26px;height:26px;font-size:13px;
+    background:transparent;color:var(--text);
+  }
+  .stab-btn-sm:active{background:var(--card2);}
   .sec-header{
     display:flex;justify-content:flex-end;
     margin-bottom:8px;
@@ -1154,12 +1159,12 @@
       <div class="section" id="secHome">
         <div class="grid" id="appGrid" style="display:none;"></div>
         <div class="category-tabs" id="categoryTabs"></div>
-        <div id="homeToolbar" style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin:8px 0 10px;padding:6px 8px;border-radius:14px;background:linear-gradient(135deg,#1a1a1a 0%,#444444 50%,#111111 100%);box-shadow:0 4px 12px rgba(0,0,0,.3);">
-          <span id="syncIndicator" style="font-size:10px;color:rgba(255,255,255,.6);padding:0 4px;margin-right:auto;"></span>
-          <button id="categoryIframeExternalBtn" title="外部ブラウザで開く" style="display:none;background:rgba(255,255,255,.95);color:#111;border:none;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;align-items:center;gap:4px;">🌐 外部ブラウザで開く</button>
-          <button class="stab-btn" id="themeBtn" title="テーマ">🌙</button>
-          <button class="stab-btn" id="refreshBtn" title="更新">🔄</button>
-          <button class="stab-btn" id="settingsBtn" title="設定">⚙️</button>
+        <div id="homeToolbar" style="position:fixed;bottom:calc(env(safe-area-inset-bottom) + 10px);left:14px;right:14px;z-index:40;display:flex;justify-content:flex-end;align-items:center;gap:4px;padding:5px 8px;border-radius:14px;background:var(--card);border:1px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,.18);">
+          <span id="syncIndicator" style="font-size:9px;color:var(--sub);padding:0 4px;margin-right:auto;"></span>
+          <button id="categoryIframeExternalBtn" title="外部ブラウザで開く" style="display:none;background:var(--card2);color:var(--text);border:none;border-radius:16px;padding:4px 10px;font-size:11px;font-weight:700;align-items:center;gap:3px;">🌐 外部ブラウザ</button>
+          <button class="stab-btn stab-btn-sm" id="themeBtn" title="テーマ">🌙</button>
+          <button class="stab-btn stab-btn-sm" id="refreshBtn" title="更新">🔄</button>
+          <button class="stab-btn stab-btn-sm" id="settingsBtn" title="設定">⚙️</button>
         </div>
         <div class="banner-links" id="bannerLinks"></div>
         <div id="categoryIframeWrap" style="display:none;flex-direction:column;border-radius:12px;overflow:hidden;margin-bottom:12px;background:var(--card2);">
@@ -1338,13 +1343,6 @@
       <button class="btn-cancel" id="secretModeToggleBtn">🔒 隠しカテゴリ表示: OFF</button>
     </div>
 
-    <label>フィード選択(複数可)</label>
-    <div class="feed-checks" id="feedChecks"></div>
-    <label>カスタムRSS URL(任意・1件)</label>
-    <input type="text" id="feedUrlInput" placeholder="https://...">
-    <div class="sheet-actions">
-      <button class="btn-save" id="saveFeedBtn">フィードを更新</button>
-    </div>
     <div class="sheet-actions">
       <button class="btn-cancel" id="settingsCloseBtn">閉じる</button>
     </div>
@@ -1695,8 +1693,10 @@ function resizeCategoryIframe(){
   const wrap = document.getElementById('categoryIframeWrap');
   if(!wrap || wrap.style.display === 'none') return;
   const rect = wrap.getBoundingClientRect();
-  /* fill remaining viewport height below the wrap, minus a small margin */
-  const available = window.innerHeight - rect.top - 12;
+  const toolbar = document.getElementById('homeToolbar');
+  const toolbarH = (toolbar && toolbar.offsetHeight) ? toolbar.offsetHeight : 0;
+  /* fill remaining viewport height below the wrap, minus the fixed bottom toolbar and a small margin */
+  const available = window.innerHeight - rect.top - toolbarH - 20;
   wrap.style.height = Math.max(300, Math.round(available)) + 'px';
 }
 
@@ -3978,34 +3978,8 @@ document.getElementById('refreshBtn').addEventListener('click', function(){
 
 /* ---- settings: backup / restore ---- */
 const settingsOverlay = document.getElementById('settingsOverlay');
-const feedUrlInput = document.getElementById('feedUrlInput');
-const feedChecks = document.getElementById('feedChecks');
-
-FEED_PRESETS.forEach(function(preset, i){
-  const label = document.createElement('label');
-  const cb = document.createElement('input');
-  cb.type = 'checkbox';
-  cb.value = preset.url;
-  cb.id = 'feedCheck_' + i;
-  const span = document.createElement('span');
-  span.textContent = preset.label;
-  label.appendChild(cb);
-  label.appendChild(span);
-  feedChecks.appendChild(label);
-});
 
 document.getElementById('settingsBtn').addEventListener('click', function(){
-  const saved = getSavedFeeds();
-  let customUrl = '';
-  const checks = feedChecks.querySelectorAll('input[type=checkbox]');
-  checks.forEach(function(cb){
-    cb.checked = saved.indexOf(cb.value) !== -1;
-  });
-  saved.forEach(function(url){
-    const isPreset = FEED_PRESETS.some(function(p){ return p.url === url; });
-    if(!isPreset) customUrl = url;
-  });
-  feedUrlInput.value = customUrl;
   renderCategoryOrderList();
   updateStorageUsage();
   settingsOverlay.classList.add('show');
@@ -4018,23 +3992,6 @@ document.getElementById('feedRefreshBtn').addEventListener('click', function(){
   loadFeed();
 });
 
-document.getElementById('saveFeedBtn').addEventListener('click', function(){
-  const selected = [];
-  const checks = feedChecks.querySelectorAll('input[type=checkbox]');
-  checks.forEach(function(cb){
-    if(cb.checked) selected.push(cb.value);
-  });
-  const custom = feedUrlInput.value.trim();
-  if(custom) selected.push(custom);
-
-  if(!selected.length){
-    localStorage.removeItem(FEED_KEY);
-  }else{
-    localStorage.setItem(FEED_KEY, JSON.stringify(selected));
-  }
-  loadFeed();
-  settingsOverlay.classList.remove('show');
-});
 
 document.getElementById('exportBtn').addEventListener('click', function(){
   const data = {};
