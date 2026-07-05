@@ -1206,8 +1206,9 @@
         <div class="grid" id="appGrid" style="display:none;"></div>
         <div class="category-tabs" id="categoryTabs"></div>
         <div class="banner-links" id="bannerLinks"></div>
-        <div id="categoryIframeWrap" style="display:none;border-radius:12px;overflow:hidden;margin-bottom:12px;">
+        <div id="categoryIframeWrap" style="display:none;position:relative;border-radius:12px;overflow:hidden;margin-bottom:12px;">
           <iframe id="categoryIframe" style="width:100%;height:100%;border:none;display:block;" allowfullscreen></iframe>
+          <button id="categoryIframeExternalBtn" title="外部ブラウザで開く" style="position:absolute;top:8px;right:8px;z-index:5;background:rgba(0,0,0,0.65);color:#fff;border:none;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:4px;backdrop-filter:blur(4px);">🌐 外部ブラウザ</button>
         </div>
         <div id="bottomSpacer" style="height:80px;pointer-events:none;flex-shrink:0;"></div>
       </div>
@@ -1765,6 +1766,24 @@ function updateCategoryIframe(){
 
 window.addEventListener('resize', resizeCategoryIframe);
 window.addEventListener('orientationchange', function(){ setTimeout(resizeCategoryIframe, 200); });
+
+/* open the site currently shown in the category iframe in the external browser
+   (needed for things like Google login which iframes block) */
+const categoryIframeExternalBtn = document.getElementById('categoryIframeExternalBtn');
+if(categoryIframeExternalBtn){
+  categoryIframeExternalBtn.addEventListener('click', function(){
+    const iframe = document.getElementById('categoryIframe');
+    if(!iframe) return;
+    let url = iframe.src;
+    try{
+      /* if the iframe navigated internally (same-origin site), grab its live URL */
+      if(iframe.contentWindow && iframe.contentWindow.location && iframe.contentWindow.location.href){
+        url = iframe.contentWindow.location.href;
+      }
+    }catch(e){ /* cross-origin iframe: fall back to the original src */ }
+    if(url) window.open(url, '_blank');
+  });
+}
 
 const linksContainer = document.getElementById('bannerLinks');
 const categoryTabsEl = document.getElementById('categoryTabs');
