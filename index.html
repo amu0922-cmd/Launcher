@@ -1188,28 +1188,19 @@
 
     <div class="wrap">
 
-      <!-- section tabs -->
-      <div class="section-tabs" id="sectionTabs">
-        <button class="section-tab" data-sec="browser">🌐 ブラウザ</button>
-        <button class="section-tab active" data-sec="home">🏠 ホーム</button>
-        <button class="section-tab" data-sec="feed">📰 フィード</button>
-        <div class="section-tab-actions">
-          <span id="syncIndicator" style="font-size:10px;color:var(--sub);padding:0 4px;"></span>
-          <button class="stab-btn" id="themeBtn" title="テーマ">🌙</button>
-          <button class="stab-btn" id="refreshBtn" title="更新">🔄</button>
-          <button class="stab-btn" id="settingsBtn" title="設定">⚙️</button>
-        </div>
-      </div>
-
       <!-- home section -->
       <div class="section" id="secHome">
         <div class="grid" id="appGrid" style="display:none;"></div>
         <div class="category-tabs" id="categoryTabs"></div>
+        <div id="homeToolbar" style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin:8px 0 10px;padding:6px 8px;border-radius:14px;background:linear-gradient(135deg,#1a1a1a 0%,#444444 50%,#111111 100%);box-shadow:0 4px 12px rgba(0,0,0,.3);">
+          <span id="syncIndicator" style="font-size:10px;color:rgba(255,255,255,.6);padding:0 4px;margin-right:auto;"></span>
+          <button id="categoryIframeExternalBtn" title="外部ブラウザで開く" style="display:none;background:rgba(255,255,255,.95);color:#111;border:none;border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;align-items:center;gap:4px;">🌐 外部ブラウザで開く</button>
+          <button class="stab-btn" id="themeBtn" title="テーマ">🌙</button>
+          <button class="stab-btn" id="refreshBtn" title="更新">🔄</button>
+          <button class="stab-btn" id="settingsBtn" title="設定">⚙️</button>
+        </div>
         <div class="banner-links" id="bannerLinks"></div>
         <div id="categoryIframeWrap" style="display:none;flex-direction:column;border-radius:12px;overflow:hidden;margin-bottom:12px;background:var(--card2);">
-          <div id="categoryIframeToolbar" style="display:flex;justify-content:flex-end;align-items:center;padding:6px 8px;flex-shrink:0;">
-            <button id="categoryIframeExternalBtn" title="外部ブラウザで開く" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:4px;">🌐 外部ブラウザで開く</button>
-          </div>
           <div id="categoryIframeContainer" style="position:relative;width:100%;flex:1;min-height:0;overflow:hidden;"></div>
         </div>
         <div id="bottomSpacer" style="height:80px;pointer-events:none;flex-shrink:0;"></div>
@@ -1761,6 +1752,7 @@ function destroyCategoryIframe(cat){
 function updateCategoryIframe(){
   const wrap = document.getElementById('categoryIframeWrap');
   const container = document.getElementById('categoryIframeContainer');
+  const extBtn = document.getElementById('categoryIframeExternalBtn');
   if(!wrap || !container) return;
   const url = getCategoryUrl(currentCategory);
 
@@ -1772,6 +1764,7 @@ function updateCategoryIframe(){
   if(url){
     wrap.style.display = 'flex';
     linksContainer.style.display = 'none';
+    if(extBtn) extBtn.style.display = 'flex';
 
     let iframe = categoryIframes[currentCategory];
     if(!iframe){
@@ -1798,6 +1791,7 @@ function updateCategoryIframe(){
   }else{
     wrap.style.display = 'none';
     linksContainer.style.display = '';
+    if(extBtn) extBtn.style.display = 'none';
   }
 }
 
