@@ -1,4 +1,4 @@
-const CACHE_NAME = 'launcher-cache-v152';
+const CACHE_NAME = 'launcher-cache-v153';
 const STATIC_ASSETS = [
   './manifest.json',
   './icons/icon-192.png',
