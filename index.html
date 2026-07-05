@@ -1337,6 +1337,9 @@
     <label>カテゴリの並び順</label>
     <div class="category-order-list" id="categoryOrderList"></div>
 
+    <label>起動時に表示するカテゴリ</label>
+    <select id="startupCategorySelect" style="width:100%;padding:8px;border-radius:10px;border:1px solid var(--border);background:var(--card2);color:var(--text);font-size:13px;margin-bottom:12px;"></select>
+
     <div class="sheet-actions">
       <button class="btn-cancel" id="secretModeToggleBtn">🔒 隠しカテゴリ表示: OFF</button>
     </div>
@@ -1360,7 +1363,7 @@ const CLOUD_SYNC_KEYS = [
   'launcherBrowserTabs', 'launcherFavorites', 'launcherReadLater',
   'launcherTheme', 'launcherBackground', 'launcherBanner',
   'launcherBrowserHistory',
-  'launcherCategoryUrls'
+  'launcherCategoryUrls', 'launcherStartupCategory'
 ];
 
 let syncDebounceTimer = null;
@@ -2048,6 +2051,11 @@ function renameCategory(oldName, newNameRaw){
     localStorage.setItem(CATEGORY_KEY, newName);
   }
 
+  /* migrate the configured startup category too */
+  if(localStorage.getItem(STARTUP_CATEGORY_KEY) === oldName){
+    localStorage.setItem(STARTUP_CATEGORY_KEY, newName);
+  }
+
   renderCategoryOrderList();
   renderCategoryTabs();
   renderBannerLinks();
@@ -2575,15 +2583,48 @@ document.getElementById('linkDelete').addEventListener('click', function(){
   closeLinkSheet();
 });
 
+const STARTUP_CATEGORY_KEY = 'launcherStartupCategory';
+
+function getStartupCategory(cats){
+  const saved = localStorage.getItem(STARTUP_CATEGORY_KEY);
+  if(saved && cats.indexOf(saved) !== -1) return saved;
+  return cats.length ? cats[0] : null;
+}
+
+function renderStartupCategorySelect(){
+  const sel = document.getElementById('startupCategorySelect');
+  if(!sel) return;
+  const cats = getOrderedCategories().filter(function(c){ return !isSecretCategory(c); });
+  const current = localStorage.getItem(STARTUP_CATEGORY_KEY);
+  sel.innerHTML = '';
+  cats.forEach(function(cat){
+    const opt = document.createElement('option');
+    opt.value = cat;
+    opt.textContent = cat;
+    sel.appendChild(opt);
+  });
+  if(current && cats.indexOf(current) !== -1) sel.value = current;
+  else if(cats.length) sel.value = cats[0];
+}
+
+(function(){
+  const sel = document.getElementById('startupCategorySelect');
+  if(!sel) return;
+  sel.addEventListener('change', function(){
+    localStorage.setItem(STARTUP_CATEGORY_KEY, sel.value);
+  });
+})();
+
 renderCategoryTabs();
 renderBannerLinks();
 
-/* reset to first category on every launch */
+/* show the configured startup category on launch (falls back to the first one) */
 (function(){
   const cats = getOrderedCategories().filter(function(c){ return !isSecretCategory(c); });
-  if(cats.length){
-    currentCategory = cats[0];
-    localStorage.setItem(CATEGORY_KEY, cats[0]);
+  const startCat = getStartupCategory(cats);
+  if(startCat){
+    currentCategory = startCat;
+    localStorage.setItem(CATEGORY_KEY, startCat);
     renderCategoryTabs();
     renderBannerLinks();
   }
@@ -2595,11 +2636,12 @@ cloudLoadAll().then(function(loaded){
     /* re-render with cloud data */
     apps = loadApps();
     bannerLinks = loadBannerLinks();
-    /* always start from first visible category regardless of saved value */
+    /* start from the configured startup category regardless of last-viewed value */
     const cats = getOrderedCategories().filter(function(c){ return !isSecretCategory(c); });
-    if(cats.length){
-      currentCategory = cats[0];
-      localStorage.setItem(CATEGORY_KEY, cats[0]);
+    const startCat = getStartupCategory(cats);
+    if(startCat){
+      currentCategory = startCat;
+      localStorage.setItem(CATEGORY_KEY, startCat);
     }
     renderCategoryTabs();
     renderBannerLinks();
@@ -3979,6 +4021,7 @@ const settingsOverlay = document.getElementById('settingsOverlay');
 
 document.getElementById('settingsBtn').addEventListener('click', function(){
   renderCategoryOrderList();
+  renderStartupCategorySelect();
   updateStorageUsage();
   settingsOverlay.classList.add('show');
 });
