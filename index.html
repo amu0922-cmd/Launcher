@@ -53,9 +53,9 @@
     height:100%;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 56px) 14px;
+    padding:env(safe-area-inset-top) 0 calc(env(safe-area-inset-bottom) + 56px) 0;
   }
-  .wrap{max-width:480px;margin:0 auto;}
+  .wrap{max-width:none;}
 
   /* page dots */
   /* feed page header */
@@ -570,8 +570,9 @@
     display:none;
     gap:6px;
     overflow-x:auto;
-    margin-top:14px;
+    margin-top:6px;
     padding-bottom:4px;
+    padding-left:8px;
     align-items:flex-end;
   }
   .category-tab{
@@ -1165,7 +1166,7 @@
           <span></span>
         </div>
         <div class="banner-links" id="bannerLinks"></div>
-        <div id="categoryIframeWrap" style="display:none;flex-direction:column;border-radius:12px;overflow:hidden;margin-bottom:12px;background:var(--card2);">
+        <div id="categoryIframeWrap" style="display:none;flex-direction:column;overflow:hidden;background:var(--card2);">
           <div id="categoryIframeContainer" style="position:relative;width:100%;flex:1;min-height:0;overflow:hidden;"></div>
         </div>
         <div id="bottomSpacer" style="height:10px;pointer-events:none;flex-shrink:0;"></div>
