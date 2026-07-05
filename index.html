@@ -53,7 +53,7 @@
     height:100%;
     overflow-y:auto;
     -webkit-overflow-scrolling:touch;
-    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 90px) 14px;
+    padding:env(safe-area-inset-top) 14px calc(env(safe-area-inset-bottom) + 14px) 14px;
   }
   .wrap{max-width:480px;margin:0 auto;}
 
@@ -132,38 +132,7 @@
     font-size:14px;padding:4px 6px;flex-shrink:0;opacity:.45;
   }
 
-  /* inline weather strip at top of home */
-  /* fixed bottom weather bar */
-  .weather-fixed-bar{
-    position:fixed;
-    bottom:calc(env(safe-area-inset-bottom) + 10px);
-    left:14px;right:14px;
-    z-index:40;
-    background:linear-gradient(135deg,#1a1a1a 0%,#444444 50%,#111111 100%);
-    padding:6px;
-    border-radius:16px;
-    box-shadow:0 4px 12px rgba(0,0,0,.35);
-    display:flex;
-    align-items:center;
-    -webkit-user-select:none;user-select:none;
-    -webkit-touch-callout:none;
-    cursor:pointer;
-  }
-  .weather-fixed-bar-inner{
-    display:flex;
-    align-items:center;
-    gap:4px;
-    flex:1;
-    background:rgba(255,255,255,.1);
-    border-radius:11px;
-    padding:7px 14px;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-  }
-  .weather-fixed-bar-inner::-webkit-scrollbar{display:none;}
-  .weather-fixed-bar .ws-day .ws-name{color:#fff;opacity:.9;}
-  .weather-fixed-bar .ws-day .ws-temp{color:#fff;opacity:.85;}
-  .weather-fixed-bar .ws-reload{color:rgba(255,255,255,.6);}
+  /* inline weather strip at top of home (bottom bar removed; site iframes now handle weather) */
 
   .weather-inline{
     display:flex;
@@ -1172,13 +1141,6 @@
 </style>
 </head>
 <body>
-<!-- fixed bottom weather bar -->
-<div class="weather-fixed-bar" id="weatherBox">
-  <div class="weather-fixed-bar-inner">
-    <div class="weather-week" id="weatherWeek" style="display:contents;"></div>
-    <button class="ws-reload" id="wReload" title="更新">↻</button>
-  </div>
-</div>
 
 <div class="pager" id="pager">
 <div class="pager-inner" id="pagerInner">
@@ -1203,7 +1165,7 @@
         <div id="categoryIframeWrap" style="display:none;flex-direction:column;border-radius:12px;overflow:hidden;margin-bottom:12px;background:var(--card2);">
           <div id="categoryIframeContainer" style="position:relative;width:100%;flex:1;min-height:0;overflow:hidden;"></div>
         </div>
-        <div id="bottomSpacer" style="height:80px;pointer-events:none;flex-shrink:0;"></div>
+        <div id="bottomSpacer" style="height:10px;pointer-events:none;flex-shrink:0;"></div>
       </div>
 
       <!-- feed section -->
@@ -1371,6 +1333,10 @@
     </div>
     <label>カテゴリの並び順</label>
     <div class="category-order-list" id="categoryOrderList"></div>
+
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="secretModeToggleBtn">🔒 隠しカテゴリ表示: OFF</button>
+    </div>
 
     <label>フィード選択(複数可)</label>
     <div class="feed-checks" id="feedChecks"></div>
@@ -1728,12 +1694,9 @@ function setCategoryUrl(cat, url){
 function resizeCategoryIframe(){
   const wrap = document.getElementById('categoryIframeWrap');
   if(!wrap || wrap.style.display === 'none') return;
-  const page = document.getElementById('pageHome');
   const rect = wrap.getBoundingClientRect();
-  const weatherBar = document.getElementById('weatherBox');
-  const weatherH = (weatherBar && weatherBar.offsetHeight) ? weatherBar.offsetHeight : 0;
-  /* fill remaining viewport height below the wrap, minus fixed weather bar and a small margin */
-  const available = window.innerHeight - rect.top - weatherH - 12;
+  /* fill remaining viewport height below the wrap, minus a small margin */
+  const available = window.innerHeight - rect.top - 12;
   wrap.style.height = Math.max(300, Math.round(available)) + 'px';
 }
 
@@ -1884,6 +1847,27 @@ function isSecretCategory(cat){
   return cat && cat.startsWith('🔒');
 }
 
+function updateSecretModeToggleBtn(){
+  const btn = document.getElementById('secretModeToggleBtn');
+  if(btn) btn.textContent = secretMode ? '🔓 隠しカテゴリ表示: ON' : '🔒 隠しカテゴリ表示: OFF';
+}
+
+(function(){
+  const btn = document.getElementById('secretModeToggleBtn');
+  if(!btn) return;
+  btn.addEventListener('click', function(){
+    secretMode = !secretMode;
+    const cats = getOrderedCategories();
+    const newVisible = cats.filter(function(cat){
+      return secretMode ? isSecretCategory(cat) : !isSecretCategory(cat);
+    });
+    if(newVisible.length) currentCategory = newVisible[0];
+    renderCategoryTabs();
+    renderBannerLinks();
+    updateSecretModeToggleBtn();
+  });
+})();
+
 function renderCategoryTabs(){
   const cats = getOrderedCategories();
   categoryTabsEl.innerHTML = '';
@@ -1938,35 +1922,7 @@ function getFilteredLinks(){
   });
 }
 
-/* ---- secret: triple tap on weather box ---- */
-(function(){
-  let tapCount = 0;
-  let tapTimer = null;
-  const weatherBox = document.getElementById('weatherBox');
-
-  weatherBox.addEventListener('touchend', function(e){
-    if(e.target === wReload || wReload.contains(e.target)) return;
-    e.preventDefault();
-    tapCount++;
-    clearTimeout(tapTimer);
-    tapTimer = setTimeout(function(){ tapCount = 0; }, 600);
-    if(tapCount >= 3){
-      tapCount = 0;
-      clearTimeout(tapTimer);
-      secretMode = !secretMode;
-      const cats = getOrderedCategories();
-      const newVisible = cats.filter(function(cat){
-        return secretMode ? isSecretCategory(cat) : !isSecretCategory(cat);
-      });
-      if(newVisible.length) currentCategory = newVisible[0];
-      renderCategoryTabs();
-      renderBannerLinks();
-      /* subtle flash feedback */
-      weatherBox.style.opacity = '0.3';
-      setTimeout(function(){ weatherBox.style.opacity = '1'; }, 200);
-    }
-  });
-})();
+/* secret category visibility is now toggled from the settings panel (see secretModeToggleBtn below) */
 
 function renderCategoryOrderList(){
   const list = document.getElementById('categoryOrderList');
@@ -2699,9 +2655,6 @@ function goToSection(key){
   document.querySelectorAll('.section-tab').forEach(function(btn){
     btn.classList.toggle('active', btn.dataset.sec === key);
   });
-  /* show weather bar only on home */
-  const wb = document.getElementById('weatherBox');
-  if(wb) wb.style.display = key === 'home' ? '' : 'none';
 
   browserPanel.classList.toggle('visible', key === 'browser');
   if(key === 'browser' && activeTabId){
@@ -3286,94 +3239,7 @@ function openInBrowser(url){
   openNewTab(url);
 }
 
-/* ---- weather ---- */
-const wReload = document.getElementById('wReload');
-const weatherWeek = document.getElementById('weatherWeek');
-const weekdayNames = ['日','月','火','水','木','金','土'];
-
-function weatherEmoji(code){
-  if(code === 0) return {icon:'☀️', text:'晴れ'};
-  if(code === 1 || code === 2) return {icon:'🌤️', text:'晴れ時々曇り'};
-  if(code === 3) return {icon:'☁️', text:'曇り'};
-  if(code === 45 || code === 48) return {icon:'🌫️', text:'霧'};
-  if(code >= 51 && code <= 57) return {icon:'🌦️', text:'霧雨'};
-  if(code >= 61 && code <= 65) return {icon:'🌧️', text:'雨'};
-  if(code === 66 || code === 67) return {icon:'🌧️', text:'凍雨'};
-  if(code >= 71 && code <= 77) return {icon:'🌨️', text:'雪'};
-  if(code === 80 || code === 81 || code === 82) return {icon:'🌧️', text:'にわか雨'};
-  if(code === 85 || code === 86) return {icon:'🌨️', text:'にわか雪'};
-  if(code >= 95) return {icon:'⛈️', text:'雷雨'};
-  return {icon:'🌡️', text:''};
-}
-
-function renderWeekly(daily){
-  weatherWeek.innerHTML = '';
-  if(!daily || !daily.time) return;
-  daily.time.forEach(function(dateStr, i){
-    const d = new Date(dateStr);
-    const w = weatherEmoji(daily.weathercode[i]);
-    const max = Math.round(daily.temperature_2m_max[i]);
-    const min = Math.round(daily.temperature_2m_min[i]);
-
-    const day = document.createElement('div');
-    day.className = 'ws-day';
-
-    const dname = document.createElement('div');
-    dname.className = 'ws-name';
-    dname.textContent = i === 0 ? '今日' : weekdayNames[d.getDay()];
-
-    const dicon = document.createElement('div');
-    dicon.className = 'ws-icon';
-    dicon.textContent = w.icon;
-
-    const dtemp = document.createElement('div');
-    dtemp.className = 'ws-temp';
-    dtemp.textContent = max + '°/' + min + '°';
-
-    day.appendChild(dname);
-    day.appendChild(dicon);
-    day.appendChild(dtemp);
-    weatherWeek.appendChild(day);
-  });
-}
-
-function fetchWeather(lat, lon){
-  const url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon
-    + '&daily=temperature_2m_max,temperature_2m_min,weathercode'
-    + '&forecast_days=7&timezone=auto';
-  fetch(url).then(function(r){ return r.json(); }).then(function(d){
-    renderWeekly(d.daily);
-  }).catch(function(){});
-}
-
-function loadWeather(){
-  const cached = localStorage.getItem(COORD_KEY);
-  if(cached){
-    try{
-      const c = JSON.parse(cached);
-      fetchWeather(c.lat, c.lon);
-    }catch(e){}
-  }
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(function(pos){
-      const lat = pos.coords.latitude;
-      const lon = pos.coords.longitude;
-      localStorage.setItem(COORD_KEY, JSON.stringify({lat:lat, lon:lon}));
-      fetchWeather(lat, lon);
-    }, function(){});
-  }
-}
-
-wReload.addEventListener('click', function(e){
-  e.stopPropagation();
-  loadWeather();
-});
-
-loadWeather();
-
-document.getElementById('weatherBox').addEventListener('contextmenu', function(e){
-  e.preventDefault();
-});
+/* ---- weather: removed (weather now shown via a category iframe instead) ---- */
 
 /* in-browser floating clock (draggable + resizable) */
 (function(){
