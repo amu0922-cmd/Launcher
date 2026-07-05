@@ -1159,6 +1159,7 @@
           <span id="syncIndicator" style="justify-self:start;font-size:9px;color:var(--sub);padding:0 4px;"></span>
           <div style="display:flex;align-items:center;gap:14px;justify-self:center;">
             <button id="categoryIframeExternalBtn" title="外部ブラウザで開く" style="display:none;background:var(--card2);color:var(--text);border:none;border-radius:16px;padding:4px 10px;font-size:11px;font-weight:700;align-items:center;gap:3px;">🌐 外部ブラウザ</button>
+            <button id="categoryIframeBookmarkBtn" title="このページをブックマーク" style="display:none;background:var(--card2);color:var(--text);border:none;border-radius:16px;padding:4px 10px;font-size:11px;font-weight:700;align-items:center;gap:3px;">🔖 保存</button>
             <button class="stab-btn stab-btn-sm" id="themeBtn" title="テーマ">🌙</button>
             <button class="stab-btn stab-btn-sm" id="refreshBtn" title="更新">🔄</button>
             <button class="stab-btn stab-btn-sm" id="settingsBtn" title="設定">⚙️</button>
@@ -1345,6 +1346,9 @@
       <button class="btn-cancel" id="secretModeToggleBtn">🔒 隠しカテゴリ表示: OFF</button>
     </div>
 
+    <label>🔖 サイト内ブックマーク</label>
+    <div class="category-order-list" id="iframeBookmarksList"></div>
+
     <div class="sheet-actions">
       <button class="btn-cancel" id="settingsCloseBtn">閉じる</button>
     </div>
@@ -1364,7 +1368,7 @@ const CLOUD_SYNC_KEYS = [
   'launcherBrowserTabs', 'launcherFavorites', 'launcherReadLater',
   'launcherTheme', 'launcherBackground', 'launcherBanner',
   'launcherBrowserHistory',
-  'launcherCategoryUrls', 'launcherStartupCategory'
+  'launcherCategoryUrls', 'launcherStartupCategory', 'launcherIframeBookmarks'
 ];
 
 let syncDebounceTimer = null;
@@ -1718,6 +1722,7 @@ function updateCategoryIframe(){
   const wrap = document.getElementById('categoryIframeWrap');
   const container = document.getElementById('categoryIframeContainer');
   const extBtn = document.getElementById('categoryIframeExternalBtn');
+  const bookmarkBtn = document.getElementById('categoryIframeBookmarkBtn');
   if(!wrap || !container) return;
   const url = getCategoryUrl(currentCategory);
 
@@ -1730,6 +1735,7 @@ function updateCategoryIframe(){
     wrap.style.display = 'flex';
     linksContainer.style.display = 'none';
     if(extBtn) extBtn.style.display = 'flex';
+    if(bookmarkBtn) bookmarkBtn.style.display = 'flex';
 
     let iframe = categoryIframes[currentCategory];
     if(!iframe){
@@ -1757,6 +1763,7 @@ function updateCategoryIframe(){
     wrap.style.display = 'none';
     linksContainer.style.display = '';
     if(extBtn) extBtn.style.display = 'none';
+    if(bookmarkBtn) bookmarkBtn.style.display = 'none';
   }
 }
 
@@ -1778,6 +1785,112 @@ if(categoryIframeExternalBtn){
       }
     }catch(e){ /* cross-origin iframe: fall back to the original src */ }
     if(url) window.open(url, '_blank');
+  });
+}
+
+/* ---- category iframe bookmarks ----
+   Cross-origin sites (netkeiba etc.) block reading the iframe's live URL/title
+   from JS, so we detect what we can and let the person confirm/paste the real
+   URL before saving. */
+const IFRAME_BOOKMARKS_KEY = 'launcherIframeBookmarks';
+
+function loadIframeBookmarks(){
+  try{
+    const arr = JSON.parse(localStorage.getItem(IFRAME_BOOKMARKS_KEY) || '[]');
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){ return []; }
+}
+function saveIframeBookmarks(arr){
+  localStorage.setItem(IFRAME_BOOKMARKS_KEY, JSON.stringify(arr));
+}
+
+function renderIframeBookmarksList(){
+  const list = document.getElementById('iframeBookmarksList');
+  if(!list) return;
+  const bookmarks = loadIframeBookmarks();
+  list.innerHTML = '';
+  if(!bookmarks.length){
+    const empty = document.createElement('div');
+    empty.className = 'category-order-empty';
+    empty.textContent = '保存されたブックマークはありません';
+    list.appendChild(empty);
+    return;
+  }
+  bookmarks.slice().reverse().forEach(function(bm){
+    const row = document.createElement('div');
+    row.className = 'category-order-item';
+
+    const top = document.createElement('div');
+    top.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px;';
+
+    const info = document.createElement('div');
+    info.style.cssText = 'flex:1;min-width:0;';
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    title.textContent = bm.title || bm.url;
+    const url = document.createElement('div');
+    url.style.cssText = 'font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    url.textContent = bm.url;
+    info.appendChild(title);
+    info.appendChild(url);
+
+    const openBtn = document.createElement('button');
+    openBtn.textContent = '🌐';
+    openBtn.title = '外部ブラウザで開く';
+    openBtn.style.cssText = 'background:none;border:none;font-size:16px;padding:4px 6px;';
+    openBtn.addEventListener('click', function(){ window.open(bm.url, '_blank'); });
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '✕';
+    delBtn.style.cssText = 'background:none;border:none;color:var(--sub);font-size:13px;padding:2px 6px;';
+    delBtn.addEventListener('click', function(){
+      const all = loadIframeBookmarks().filter(function(b){ return b.id !== bm.id; });
+      saveIframeBookmarks(all);
+      renderIframeBookmarksList();
+    });
+
+    top.appendChild(info);
+    top.appendChild(openBtn);
+    top.appendChild(delBtn);
+    row.appendChild(top);
+    list.appendChild(row);
+  });
+}
+
+const categoryIframeBookmarkBtn = document.getElementById('categoryIframeBookmarkBtn');
+if(categoryIframeBookmarkBtn){
+  categoryIframeBookmarkBtn.addEventListener('click', function(){
+    const iframe = categoryIframes[currentCategory];
+    if(!iframe) return;
+    let detectedUrl = iframe.src;
+    let detectedTitle = currentCategory;
+    try{
+      if(iframe.contentWindow && iframe.contentWindow.location && iframe.contentWindow.location.href){
+        detectedUrl = iframe.contentWindow.location.href;
+      }
+      if(iframe.contentDocument && iframe.contentDocument.title){
+        detectedTitle = iframe.contentDocument.title;
+      }
+    }catch(e){ /* cross-origin: could not read the real page — let the person paste it */ }
+
+    const finalUrl = prompt(
+      '保存するURLを確認・編集してください\n(他サイトのページの場合は自動検出できないため、\n共有機能などでコピーしたURLを貼り付けてください)',
+      detectedUrl || ''
+    );
+    if(finalUrl === null || !finalUrl.trim()) return;
+    const finalTitle = prompt('タイトル(任意)', detectedTitle || '') || detectedTitle;
+
+    const bookmarks = loadIframeBookmarks();
+    bookmarks.push({
+      id: 'bm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      url: finalUrl.trim(),
+      title: (finalTitle || '').trim(),
+      cat: currentCategory,
+      savedAt: Date.now()
+    });
+    saveIframeBookmarks(bookmarks);
+    renderIframeBookmarksList();
+    alert('ブックマークに保存しました');
   });
 }
 
@@ -4023,6 +4136,7 @@ const settingsOverlay = document.getElementById('settingsOverlay');
 document.getElementById('settingsBtn').addEventListener('click', function(){
   renderCategoryOrderList();
   renderStartupCategorySelect();
+  renderIframeBookmarksList();
   updateStorageUsage();
   settingsOverlay.classList.add('show');
 });
