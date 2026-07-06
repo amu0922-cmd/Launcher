@@ -1152,6 +1152,17 @@
         <div id="categoryIframeWrap" style="display:none;flex-direction:column;overflow:hidden;background:var(--card2);">
           <div id="categoryIframeContainer" style="position:relative;width:100%;flex:1;min-height:0;overflow:hidden;"></div>
         </div>
+        <div id="bookmarkViewerWrap" style="display:none;flex-direction:column;overflow:hidden;background:var(--card2);">
+          <div id="bookmarkViewerList" style="padding:10px;overflow-y:auto;"></div>
+          <div id="bookmarkViewerFrameWrap" style="display:none;flex-direction:column;flex:1;min-height:0;">
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--card);border-bottom:1px solid var(--border);">
+              <button id="bookmarkViewerBackBtn" style="background:none;border:none;font-size:13px;font-weight:700;color:var(--text);padding:4px 6px;">← 一覧</button>
+              <div id="bookmarkViewerTitle" style="flex:1;min-width:0;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></div>
+              <button id="bookmarkViewerExternalBtn" title="外部ブラウザで開く" style="background:var(--card2);border:none;border-radius:14px;font-size:11px;font-weight:700;padding:4px 8px;color:var(--text);">🌐</button>
+            </div>
+            <div id="bookmarkViewerFrameContainer" style="position:relative;width:100%;flex:1;min-height:0;overflow:hidden;"></div>
+          </div>
+        </div>
         <div id="bottomSpacer" style="height:10px;pointer-events:none;flex-shrink:0;"></div>
       </div>
 
@@ -1703,6 +1714,127 @@ function resizeCategoryIframe(){
   wrap.style.height = Math.max(300, Math.round(available)) + 'px';
 }
 
+function resizeBookmarkViewer(){
+  const wrap = document.getElementById('bookmarkViewerWrap');
+  if(!wrap || wrap.style.display === 'none') return;
+  const rect = wrap.getBoundingClientRect();
+  const toolbar = document.getElementById('homeToolbar');
+  const toolbarH = (toolbar && toolbar.offsetHeight) ? toolbar.offsetHeight : 0;
+  const available = window.innerHeight - rect.top - toolbarH - 20;
+  wrap.style.height = Math.max(300, Math.round(available)) + 'px';
+}
+window.addEventListener('resize', resizeBookmarkViewer);
+window.addEventListener('orientationchange', function(){ setTimeout(resizeBookmarkViewer, 200); });
+
+/* ---- bookmark viewer: browse saved bookmarks inside a persistent iframe,
+   kept alive per-bookmark like category iframes so switching tabs and coming
+   back doesn't lose your place ---- */
+const bookmarkIframes = {};
+let activeBookmarkId = null;
+
+function updateBookmarkView(){
+  const wrap = document.getElementById('bookmarkViewerWrap');
+  if(!wrap) return;
+  wrap.style.display = 'flex';
+  const page = document.getElementById('pageHome');
+  if(page) page.scrollTop = 0;
+  if(activeBookmarkId && bookmarkIframes[activeBookmarkId]){
+    showBookmarkPanel(true);
+  }else{
+    showBookmarkPanel(false);
+    renderBookmarkPickerList();
+  }
+  requestAnimationFrame(resizeBookmarkViewer);
+  setTimeout(resizeBookmarkViewer, 150);
+}
+
+function showBookmarkPanel(showFrame){
+  const listEl = document.getElementById('bookmarkViewerList');
+  const frameWrap = document.getElementById('bookmarkViewerFrameWrap');
+  if(!listEl || !frameWrap) return;
+  listEl.style.display = showFrame ? 'none' : 'block';
+  frameWrap.style.display = showFrame ? 'flex' : 'none';
+}
+
+function renderBookmarkPickerList(){
+  const listEl = document.getElementById('bookmarkViewerList');
+  if(!listEl) return;
+  const bookmarks = loadIframeBookmarks();
+  listEl.innerHTML = '';
+  if(!bookmarks.length){
+    const empty = document.createElement('div');
+    empty.className = 'category-order-empty';
+    empty.textContent = 'まだブックマークがありません。各カテゴリの「🔖 保存」ボタンで追加できます。';
+    listEl.appendChild(empty);
+    return;
+  }
+  bookmarks.slice().reverse().forEach(function(bm){
+    const row = document.createElement('div');
+    row.className = 'category-order-item';
+    row.style.cursor = 'pointer';
+
+    const title = document.createElement('div');
+    title.style.cssText = 'font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    title.textContent = bm.title || bm.url;
+    const url = document.createElement('div');
+    url.style.cssText = 'font-size:11px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+    url.textContent = bm.url;
+
+    row.appendChild(title);
+    row.appendChild(url);
+    row.addEventListener('click', function(){
+      openBookmarkInFrame(bm);
+    });
+    listEl.appendChild(row);
+  });
+}
+
+function openBookmarkInFrame(bm){
+  activeBookmarkId = bm.id;
+  const container = document.getElementById('bookmarkViewerFrameContainer');
+  const titleEl = document.getElementById('bookmarkViewerTitle');
+  if(titleEl) titleEl.textContent = bm.title || bm.url;
+
+  Object.keys(bookmarkIframes).forEach(function(id){
+    bookmarkIframes[id].style.display = 'none';
+  });
+
+  let iframe = bookmarkIframes[bm.id];
+  if(!iframe){
+    iframe = document.createElement('iframe');
+    iframe.style.cssText = 'width:100%;height:100%;border:none;position:absolute;top:0;left:0;';
+    iframe.setAttribute('allowfullscreen', '');
+    iframe.setAttribute('allow', 'clipboard-write; web-share; fullscreen');
+    iframe.src = bm.url;
+    container.appendChild(iframe);
+    bookmarkIframes[bm.id] = iframe;
+  }
+  iframe.style.display = 'block';
+
+  showBookmarkPanel(true);
+  requestAnimationFrame(resizeBookmarkViewer);
+  setTimeout(resizeBookmarkViewer, 150);
+}
+
+const bookmarkViewerBackBtn = document.getElementById('bookmarkViewerBackBtn');
+if(bookmarkViewerBackBtn){
+  bookmarkViewerBackBtn.addEventListener('click', function(){
+    activeBookmarkId = null;
+    showBookmarkPanel(false);
+    renderBookmarkPickerList();
+  });
+}
+
+const bookmarkViewerExternalBtn = document.getElementById('bookmarkViewerExternalBtn');
+if(bookmarkViewerExternalBtn){
+  bookmarkViewerExternalBtn.addEventListener('click', function(){
+    if(!activeBookmarkId) return;
+    const bookmarks = loadIframeBookmarks();
+    const bm = bookmarks.find(function(b){ return b.id === activeBookmarkId; });
+    if(bm) window.open(bm.url, '_blank');
+  });
+}
+
 /* one persistent iframe per category so switching categories doesn't reload/lose state
    until the app itself is closed */
 const categoryIframes = {};
@@ -1832,6 +1964,19 @@ function renderIframeBookmarksList(){
     info.appendChild(title);
     info.appendChild(url);
 
+    const openInAppBtn = document.createElement('button');
+    openInAppBtn.textContent = '📱';
+    openInAppBtn.title = 'アプリ内で開く';
+    openInAppBtn.style.cssText = 'background:none;border:none;font-size:16px;padding:4px 6px;';
+    openInAppBtn.addEventListener('click', function(){
+      settingsOverlay.classList.remove('show');
+      currentCategory = BOOKMARK_TAB;
+      localStorage.setItem(CATEGORY_KEY, currentCategory);
+      renderCategoryTabs();
+      renderBannerLinks();
+      openBookmarkInFrame(bm);
+    });
+
     const openBtn = document.createElement('button');
     openBtn.textContent = '🌐';
     openBtn.title = '外部ブラウザで開く';
@@ -1848,6 +1993,7 @@ function renderIframeBookmarksList(){
     });
 
     top.appendChild(info);
+    top.appendChild(openInAppBtn);
     top.appendChild(openBtn);
     top.appendChild(delBtn);
     row.appendChild(top);
@@ -1981,6 +2127,8 @@ function updateSecretModeToggleBtn(){
   });
 })();
 
+const BOOKMARK_TAB = '🔖 ブックマーク';
+
 function renderCategoryTabs(){
   const cats = getOrderedCategories();
   categoryTabsEl.innerHTML = '';
@@ -1992,8 +2140,8 @@ function renderCategoryTabs(){
   });
 
   if(visible.length){
-    /* always start from first category */
-    if(visible.indexOf(currentCategory) === -1){
+    /* always start from first category (unless the bookmark viewer tab is active) */
+    if(currentCategory !== BOOKMARK_TAB && visible.indexOf(currentCategory) === -1){
       currentCategory = visible[0];
       localStorage.setItem(CATEGORY_KEY, currentCategory);
     }
@@ -2009,6 +2157,20 @@ function renderCategoryTabs(){
       });
       categoryTabsEl.appendChild(tab);
     });
+  }
+
+  /* bookmark viewer tab (not part of the reorderable category list) */
+  if(!secretMode){
+    const bmTab = document.createElement('button');
+    bmTab.className = 'category-tab' + (currentCategory === BOOKMARK_TAB ? ' active' : '');
+    bmTab.textContent = BOOKMARK_TAB;
+    bmTab.addEventListener('click', function(){
+      currentCategory = BOOKMARK_TAB;
+      localStorage.setItem(CATEGORY_KEY, currentCategory);
+      renderCategoryTabs();
+      renderBannerLinks();
+    });
+    categoryTabsEl.appendChild(bmTab);
   }
 
   /* subtle add button always at end */
@@ -2387,6 +2549,19 @@ function renderBannerLinks(){
   linksContainer.style.background = '';
   linksContainer.style.borderRadius = '';
   linksContainer.style.padding = '';
+
+  if(currentCategory === BOOKMARK_TAB){
+    document.getElementById('categoryIframeWrap').style.display = 'none';
+    linksContainer.style.display = 'none';
+    const extBtn = document.getElementById('categoryIframeExternalBtn');
+    const bookmarkBtn = document.getElementById('categoryIframeBookmarkBtn');
+    if(bookmarkBtn) bookmarkBtn.style.display = 'none';
+    if(extBtn) extBtn.style.display = 'none';
+    updateBookmarkView();
+    return;
+  }
+  document.getElementById('bookmarkViewerWrap').style.display = 'none';
+
   updateCategoryIframe();
   if(document.getElementById('categoryIframeWrap').style.display !== 'none') return;
   const filtered = getFilteredLinks();
