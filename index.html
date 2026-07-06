@@ -1372,6 +1372,10 @@ const CLOUD_SYNC_KEYS = [
 ];
 
 let syncDebounceTimer = null;
+/* guards against pushing a half-empty local state to the cloud before the
+   initial cloud restore has finished (this caused real data loss once) */
+let cloudRestoreDone = false;
+let pendingSaveAfterRestore = false;
 
 async function sbSet(key, value){
   try{
@@ -1434,15 +1438,26 @@ async function cloudLoadAll(){
       localStorage.setItem(SB_LAST_SYNC_KEY, new Date().toISOString());
       if(indicator) indicator.textContent = '✓ 同期済み';
       setTimeout(function(){ if(indicator) indicator.textContent = ''; }, 2000);
+      cloudRestoreDone = true;
+      if(pendingSaveAfterRestore){ pendingSaveAfterRestore = false; schedulCloudSave(); }
       return true;
     }
   }catch(e){}
   if(indicator) indicator.textContent = '';
+  cloudRestoreDone = true;
+  if(pendingSaveAfterRestore){ pendingSaveAfterRestore = false; schedulCloudSave(); }
   return false;
 }
 
-/* debounced save — waits 2s after last change before saving */
+/* debounced save — waits 2s after last change before saving.
+   Before the initial cloud restore finishes, changes are queued instead of
+   pushed immediately, so a fresh/empty local state can never overwrite the
+   real cloud backup. */
 function schedulCloudSave(){
+  if(!cloudRestoreDone){
+    pendingSaveAfterRestore = true;
+    return;
+  }
   clearTimeout(syncDebounceTimer);
   syncDebounceTimer = setTimeout(cloudSaveAll, 2000);
 }
